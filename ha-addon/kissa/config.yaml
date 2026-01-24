@@ -1,0 +1,52 @@
+# Kissa Coffee Tracker - Home Assistant Add-on Configuration
+name: "Kissa Coffee Tracker"
+description: "Track your coffee beans, brews, and dial-in your grinder settings"
+version: "1.0.0"
+slug: kissa
+url: "https://github.com/anner-klein/kissa"
+
+# Use pre-built image (build locally and push to registry)
+# For local development, comment this out and use Dockerfile
+image: "ghcr.io/anner-klein/kissa-addon-{arch}"
+
+# Supported architectures
+arch:
+  - aarch64    # Raspberry Pi 4 (64-bit)
+  - armv7      # Raspberry Pi 3/4 (32-bit)
+  - amd64      # Intel/AMD x86_64
+
+# Startup behavior
+init: false
+startup: application
+boot: auto
+
+# Network configuration
+ports:
+  3000/tcp: 3000
+  3001/tcp: 3001
+ports_description:
+  3000/tcp: "Web UI"
+  3001/tcp: "API"
+
+# Enable ingress for seamless HA integration
+ingress: true
+ingress_port: 3000
+ingress_stream: false
+panel_icon: "mdi:coffee"
+panel_title: "Kissa"
+
+# Persistent storage - maps to /config in container
+map:
+  - config:rw
+
+# Add-on options
+options:
+  log_level: info
+
+schema:
+  log_level: list(trace|debug|info|warning|error|fatal)
+
+# Resource limits (suitable for Raspberry Pi)
+resources:
+  limits:
+    memory: 512M
