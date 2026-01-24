@@ -1,0 +1,12 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/analytics/page": "app/analytics/page.js",
+  "/beans/[id]/page": "app/beans/[id]/page.js",
+  "/beans/page": "app/beans/page.js",
+  "/brew/page": "app/brew/page.js",
+  "/onboarding/page": "app/onboarding/page.js",
+  "/beans/new/page": "app/beans/new/page.js",
+  "/page": "app/page.js",
+  "/rate/page": "app/rate/page.js",
+  "/roasters/page": "app/roasters/page.js"
+}

@@ -1,0 +1,167 @@
+// Kissa Coffee App - Prisma Schema
+// SQLite database for self-hosted deployment
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// SETTINGS & GRINDER STATE
+// ============================================
+
+model Settings {
+  id                 String   @id @default(uuid())
+  defaultServings    Int      @default(2)
+  gramsPerServing    Int      @default(15)
+  displayPreferences String?  // JSON string for UI preferences
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model GrinderState {
+  id             String   @id @default(uuid())
+  grinderModel   String   @default("Comandante C40")
+  currentSetting Float    @default(20)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ============================================
+// ROASTER & BEANS
+// ============================================
+
+model Roaster {
+  id        String   @id @default(uuid())
+  name      String
+  country   String?
+  website   String?
+  logoUrl   String?  // URL or base64 for roaster logo
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  beans     Bean[]
+}
+
+enum RoastLevel {
+  LIGHT
+  MEDIUM_LIGHT
+  MEDIUM
+  MEDIUM_DARK
+  DARK
+}
+
+model Bean {
+  id                    String     @id @default(uuid())
+  roasterId             String
+  roaster               Roaster    @relation(fields: [roasterId], references: [id], onDelete: Cascade)
+  name                  String
+  originCountry         String?
+  originRegion          String?
+  varietal              String?
+  process               String? // washed, natural, honey, etc.
+  roastLevel            RoastLevel @default(MEDIUM)
+  tastingNotesExpected  String? // JSON array of expected tasting notes from roaster
+  metadata              String? // JSON for additional metadata
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  bags                  Bag[]
+  recipes               BeanMethodRecipe[]
+}
+
+// ============================================
+// BAGS (Purchase Instances)
+// ============================================
+
+enum BagStatus {
+  UNOPENED
+  OPEN
+  FINISHED
+}
+
+model Bag {
+  id           String    @id @default(uuid())
+  beanId       String
+  bean         Bean      @relation(fields: [beanId], references: [id], onDelete: Cascade)
+  roastDate    DateTime
+  openedDate   DateTime?
+  bagSizeGrams Int?
+  status       BagStatus @default(UNOPENED)
+  isAvailable  Boolean   @default(true)
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  brewLogs   BrewLog[]
+}
+
+// ============================================
+// METHODS & RECIPES
+// ============================================
+
+model Method {
+  id           String   @id @default(uuid())
+  name         String   @unique // v60, moka, espresso, french_press
+  displayName  String
+  scalingRules String?  // JSON for method-specific scaling rules
+  defaultParams String? // JSON for default recipe parameters
+  steps        String?  // JSON for default technique steps
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  beanRecipes BeanMethodRecipe[]
+  brewLogs    BrewLog[]
+}
+
+// ============================================
+// BEAN METHOD RECIPES (Property of the Bean)
+// ============================================
+
+model BeanMethodRecipe {
+  id              String     @id @default(uuid())
+  beanId          String
+  bean            Bean       @relation(fields: [beanId], references: [id], onDelete: Cascade)
+  methodId        String
+  method          Method     @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  grinderTarget   Float?
+  recipeOverrides String?    // JSON for overrides to default method params
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([beanId, methodId])
+}
+
+// ============================================
+// BREW LOGS
+// ============================================
+
+model BrewLog {
+  id                 String   @id @default(uuid())
+  bagId              String
+  bag                Bag      @relation(fields: [bagId], references: [id], onDelete: Cascade)
+  methodId           String
+  method             Method   @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  
+  // Brew parameters (JSON)
+  parameters         String?  // dose, water, temp, ratio, etc.
+  
+  // Rating
+  ratingSliders      String?  // JSON: { balance, sweetness, clarity, body, finish }
+  drawdownTime       Float?   // V60 only, in seconds
+  computedScore      Float?
+  tastingNotesActual String?  // JSON array of tasting notes user detected
+  notes              String?  // Freeform notes
+  
+  // Suggestion tracking
+  suggestionShown    String?  // JSON: what suggestion was shown
+  suggestionAccepted Boolean?
+  
+  brewedAt           DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}

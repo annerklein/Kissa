@@ -1,0 +1,12 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/analytics/page": "/analytics",
+  "/beans/[id]/page": "/beans/[id]",
+  "/beans/page": "/beans",
+  "/brew/page": "/brew",
+  "/onboarding/page": "/onboarding",
+  "/beans/new/page": "/beans/new",
+  "/page": "/",
+  "/rate/page": "/rate",
+  "/roasters/page": "/roasters"
+}

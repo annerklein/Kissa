@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+      target: development
+    ports:
+      - "3001:3001"
+    volumes:
+      - ../apps/api:/app/apps/api
+      - ../packages:/app/packages
+      - kissa-data:/app/apps/api/data
+    environment:
+      - DATABASE_URL=file:./data/kissa.db
+      - NODE_ENV=development
+      - PORT=3001
+      - HOST=0.0.0.0
+    command: pnpm --filter @kissa/api dev
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/web.Dockerfile
+      target: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../apps/web:/app/apps/web
+      - ../packages:/app/packages
+    environment:
+      - API_URL=http://api:3001
+      - NODE_ENV=development
+    command: pnpm --filter @kissa/web dev
+    depends_on:
+      - api
+
+volumes:
+  kissa-data:
+    driver: local
