@@ -8,6 +8,7 @@ import { BagCard } from '../../../components/BagCard';
 import { AddBagModal } from '../../../components/AddBagModal';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { CountryFlag } from '../../../components/CountryFlag';
+import { TubePositionPicker } from '../../../components/TubePositionIndicator';
 import { useState } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:3001` : 'http://localhost:3001');
@@ -87,6 +88,36 @@ async function markBagFinished(id: string) {
   return res.json();
 }
 
+async function freezeBag(id: string) {
+  const res = await fetch(`${API_URL}/api/bags/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'FROZEN' }),
+  });
+  if (!res.ok) throw new Error('Failed to freeze bag');
+  return res.json();
+}
+
+async function unfreezeBag(id: string) {
+  const res = await fetch(`${API_URL}/api/bags/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'OPEN' }),
+  });
+  if (!res.ok) throw new Error('Failed to unfreeze bag');
+  return res.json();
+}
+
+async function updateBagTubePosition(id: string, tubePosition: string | null) {
+  const res = await fetch(`${API_URL}/api/bags/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tubePosition }),
+  });
+  if (!res.ok) throw new Error('Failed to update bag tube position');
+  return res.json();
+}
+
 async function deleteBrew(id: string) {
   const res = await fetch(`${API_URL}/api/brews/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete brew');
@@ -94,7 +125,7 @@ async function deleteBrew(id: string) {
 }
 
 type ConfirmState = {
-  type: 'deleteBean' | 'deleteBag' | 'finishBag' | 'deleteBrew' | null;
+  type: 'deleteBean' | 'deleteBag' | 'finishBag' | 'deleteBrew' | 'freezeBag' | 'unfreezeBag' | null;
   targetId?: string;
   targetName?: string;
 };
@@ -181,6 +212,33 @@ export default function BeanProfilePage() {
     },
   });
 
+  const freezeBagMutation = useMutation({
+    mutationFn: (bagId: string) => freezeBag(bagId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bean', beanId] });
+      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
+      setConfirmState({ type: null });
+    },
+  });
+
+  const unfreezeBagMutation = useMutation({
+    mutationFn: (bagId: string) => unfreezeBag(bagId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bean', beanId] });
+      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
+      setConfirmState({ type: null });
+    },
+  });
+
+  const updateTubePositionMutation = useMutation({
+    mutationFn: ({ bagId, tubePosition }: { bagId: string; tubePosition: string | null }) =>
+      updateBagTubePosition(bagId, tubePosition),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bean', beanId] });
+      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
+    },
+  });
+
   const updateRecipeMutation = useMutation({
     mutationFn: ({ beanId, methodId, grinderTarget, recipeOverrides }: { beanId: string; methodId: string; grinderTarget: number; recipeOverrides?: RecipeOverrides }) =>
       updateBeanRecipe(beanId, methodId, grinderTarget, recipeOverrides),
@@ -250,6 +308,12 @@ export default function BeanProfilePage() {
       case 'deleteBrew':
         if (confirmState.targetId) deleteBrewMutation.mutate(confirmState.targetId);
         break;
+      case 'freezeBag':
+        if (confirmState.targetId) freezeBagMutation.mutate(confirmState.targetId);
+        break;
+      case 'unfreezeBag':
+        if (confirmState.targetId) unfreezeBagMutation.mutate(confirmState.targetId);
+        break;
     }
   };
 
@@ -257,7 +321,9 @@ export default function BeanProfilePage() {
     deleteBeanMutation.isPending || 
     deleteBagMutation.isPending || 
     finishBagMutation.isPending || 
-    deleteBrewMutation.isPending;
+    deleteBrewMutation.isPending ||
+    freezeBagMutation.isPending ||
+    unfreezeBagMutation.isPending;
 
   if (isLoading) {
     return (
@@ -602,12 +668,14 @@ export default function BeanProfilePage() {
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">Bags</h2>
-          <button
-            onClick={() => setShowAddBag(true)}
-            className="btn-secondary text-sm"
-          >
-            + Add bag
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAddBag(true)}
+              className="btn-secondary text-sm"
+            >
+              + Add bag
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -622,6 +690,16 @@ export default function BeanProfilePage() {
                   targetId: bag.id,
                   targetName: formatRoastDate(new Date(bag.roastDate))
                 })}
+                onFreeze={() => setConfirmState({
+                  type: 'freezeBag',
+                  targetId: bag.id,
+                  targetName: formatRoastDate(new Date(bag.roastDate))
+                })}
+                onUnfreeze={() => setConfirmState({
+                  type: 'unfreezeBag',
+                  targetId: bag.id,
+                  targetName: formatRoastDate(new Date(bag.roastDate))
+                })}
                 onDelete={() => setConfirmState({ 
                   type: 'deleteBag', 
                   targetId: bag.id,
@@ -632,6 +710,17 @@ export default function BeanProfilePage() {
               {/* Expanded bag content */}
               {expandedBagId === bag.id && (
                 <div className="ml-4 mt-2 space-y-4">
+                  {/* Tube position picker for open bags */}
+                  {bag.status === 'OPEN' && (
+                    <div className="bg-amber-50/50 rounded-lg p-3 border border-amber-100">
+                      <TubePositionPicker
+                        value={bag.tubePosition as 'LEFT' | 'MIDDLE' | 'RIGHT' | null | undefined}
+                        onChange={(pos) => updateTubePositionMutation.mutate({ bagId: bag.id, tubePosition: pos })}
+                        disabled={updateTubePositionMutation.isPending}
+                      />
+                    </div>
+                  )}
+
                   {/* Brew history */}
                   {(bag.brewLogs || []).length > 0 && (
                     <div className="space-y-2">
@@ -843,6 +932,28 @@ export default function BeanProfilePage() {
         message={`This will permanently delete this brew from ${confirmState.targetName}. This action cannot be undone.`}
         confirmLabel="Delete"
         variant="danger"
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmState({ type: null })}
+        isLoading={isConfirmLoading}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmState.type === 'freezeBag'}
+        title="Freeze Bag?"
+        message={`This will freeze this bag (${confirmState.targetName}). The days-off-roast clock will pause while frozen, and the bag will be removed from your rotation.`}
+        confirmLabel="❄ Freeze"
+        variant="warning"
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmState({ type: null })}
+        isLoading={isConfirmLoading}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmState.type === 'unfreezeBag'}
+        title="Unfreeze Bag?"
+        message={`This will thaw this bag (${confirmState.targetName}) and add it to your rotation as open. The frozen time will be accounted for in the days-off-roast calculation.`}
+        confirmLabel="🔥 Unfreeze"
+        variant="warning"
         onConfirm={handleConfirm}
         onCancel={() => setConfirmState({ type: null })}
         isLoading={isConfirmLoading}

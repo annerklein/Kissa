@@ -8,6 +8,7 @@ import { GrinderCard } from '../../components/GrinderCard';
 import { ServingsControl } from '../../components/ServingsControl';
 import { RecipeCard } from '../../components/RecipeCard';
 import { Logo } from '../../components/Logo';
+// Tube position is displayed inline in the hero header
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:3001` : 'http://localhost:3001');
 
@@ -183,10 +184,16 @@ function BrewPageContent() {
           <div className="text-center">
             <p className="text-coffee-300 text-sm font-medium">{bag.bean.roaster.name}</p>
             <h1 className="text-3xl font-display font-bold mt-1">{bag.bean.name}</h1>
-            <div className="flex justify-center mt-3">
+            <div className="flex justify-center items-center gap-3 mt-3">
               <span className="px-4 py-1.5 bg-white/20 rounded-full text-sm font-semibold tracking-wide backdrop-blur-sm">
                 {method.displayName}
               </span>
+              {bag.tubePosition && (
+                <span className="px-3 py-1.5 bg-amber-500/30 rounded-full text-sm font-semibold tracking-wide backdrop-blur-sm flex items-center gap-1.5">
+                  <span className="text-amber-200">Tube:</span>
+                  <span>{bag.tubePosition === 'LEFT' ? 'Left' : bag.tubePosition === 'MIDDLE' ? 'Middle' : 'Right'}</span>
+                </span>
+              )}
             </div>
           </div>
         </div>

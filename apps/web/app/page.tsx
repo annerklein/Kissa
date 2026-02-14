@@ -3,11 +3,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MethodPicker } from '../components/MethodPicker';
 import { AvailableBeanCard } from '../components/AvailableBeanCard';
+import { FrozenBagCard } from '../components/FrozenBagCard';
 import { Logo } from '../components/Logo';
 import { useState } from 'react';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:3001` : 'http://localhost:3001');
+
+async function updateBagTubePosition(bagId: string, tubePosition: string | null) {
+  const res = await fetch(`${API_URL}/api/bags/${bagId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tubePosition }),
+  });
+  if (!res.ok) throw new Error('Failed to update tube position');
+  return res.json();
+}
 
 async function updateGrinderSetting(newSetting: number) {
   const res = await fetch(`${API_URL}/api/grinder/apply`, {
@@ -16,6 +27,16 @@ async function updateGrinderSetting(newSetting: number) {
     body: JSON.stringify({ newSetting }),
   });
   if (!res.ok) throw new Error('Failed to update grinder');
+  return res.json();
+}
+
+async function unfreezeBag(bagId: string) {
+  const res = await fetch(`${API_URL}/api/bags/${bagId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'OPEN' }),
+  });
+  if (!res.ok) throw new Error('Failed to unfreeze bag');
   return res.json();
 }
 
@@ -39,6 +60,7 @@ export default function HomePage() {
   const [selectedMethodId, setSelectedMethodId] = useState<string | undefined>();
   const [showGrindModal, setShowGrindModal] = useState(false);
   const [tempGrindSetting, setTempGrindSetting] = useState<number>(20);
+  const [showFrozen, setShowFrozen] = useState(false);
 
   const { data: methods, isLoading: methodsLoading } = useQuery({
     queryKey: ['methods'],
@@ -55,6 +77,21 @@ export default function HomePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['available-beans'] });
       setShowGrindModal(false);
+    },
+  });
+
+  const tubePositionMutation = useMutation({
+    mutationFn: ({ bagId, tubePosition }: { bagId: string; tubePosition: string | null }) =>
+      updateBagTubePosition(bagId, tubePosition),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
+    },
+  });
+
+  const unfreezeMutation = useMutation({
+    mutationFn: unfreezeBag,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
     },
   });
 
@@ -89,6 +126,8 @@ export default function HomePage() {
       </div>
     );
   }
+
+  const frozenBags = data?.frozenBags || [];
 
   return (
     <main className="min-h-screen p-4 max-w-2xl mx-auto pb-28">
@@ -162,12 +201,46 @@ export default function HomePage() {
                 <AvailableBeanCard
                   bag={bag}
                   methodId={selectedMethodId || data?.selectedMethodId}
+                  onTubePositionChange={(bagId, position) => 
+                    tubePositionMutation.mutate({ bagId, tubePosition: position })
+                  }
                 />
               </div>
             ))}
           </div>
         )}
       </section>
+
+      {/* Frozen Bags Section */}
+      {frozenBags.length > 0 && (
+        <section className="mt-6 animate-slide-up" style={{ animationDelay: '0.5s' }}>
+          <button
+            onClick={() => setShowFrozen(!showFrozen)}
+            className="w-full flex items-center justify-between py-2 text-left"
+          >
+            <h2 className="section-title mb-0">
+              <span className="text-xl">❄</span>
+              Frozen ({frozenBags.length})
+            </h2>
+            <span className={`text-coffee-400 text-sm transition-transform ${showFrozen ? 'rotate-180' : ''}`}>
+              ▼
+            </span>
+          </button>
+
+          {showFrozen && (
+            <div className="space-y-2 mt-2">
+              {frozenBags.map((bag: any) => (
+                <FrozenBagCard
+                  key={bag.id}
+                  bag={bag}
+                  onUnfreeze={(bagId) => unfreezeMutation.mutate(bagId)}
+                  isUnfreezing={unfreezeMutation.isPending}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Grind Setting Modal */}
       {showGrindModal && (
