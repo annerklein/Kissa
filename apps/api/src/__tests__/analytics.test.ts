@@ -10,6 +10,7 @@ import {
   getV60Method,
   getMokaMethod,
 } from './helpers.js';
+import { prisma } from '../db/client.js';
 
 describe('Analytics API', () => {
   let app: FastifyInstance;
@@ -292,11 +293,67 @@ describe('Analytics API', () => {
       }
     });
 
-    it('returns empty stats for a far-future period cutoff', async () => {
-      // period=30d with recent brews should work; we test "no brews" by querying a valid period
-      // Since all brews are recent, all periods should return data
-      const body = json(await app.inject({ method: 'GET', url: '/api/analytics/stats?period=all' }));
-      expect(body.totalBrews).toBeGreaterThanOrEqual(1);
+    it('period filter excludes brews outside the date range', async () => {
+      // Create a brew via the API, then backdate it using Prisma directly
+      const filterRoaster = await createRoaster(app, 'Date Filter Roaster');
+      const filterBean = await createBean(app, filterRoaster.id, 'Date Filter Bean');
+      const filterBag = await createBag(app, filterBean.id);
+      const v60 = await getV60Method(app);
+
+      const oldBrew = json(
+        await app.inject({
+          method: 'POST',
+          url: '/api/brews',
+          payload: { bagId: filterBag.id, methodId: v60.id, parameters: { grindSize: 25 } },
+        })
+      );
+
+      // Rate the old brew so it has a score
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/brews/${oldBrew.id}/rating`,
+        payload: {
+          ratingSliders: { balance: 9, sweetness: 9, clarity: 9, body: 9, finish: 9 },
+        },
+      });
+
+      // Backdate brewedAt to 6 months ago using Prisma directly
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      await prisma.brewLog.update({
+        where: { id: oldBrew.id },
+        data: { brewedAt: sixMonthsAgo },
+      });
+
+      // Also create a recent brew on the same bag for comparison
+      const recentBrew = json(
+        await app.inject({
+          method: 'POST',
+          url: '/api/brews',
+          payload: { bagId: filterBag.id, methodId: v60.id, parameters: { grindSize: 24 } },
+        })
+      );
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/brews/${recentBrew.id}/rating`,
+        payload: {
+          ratingSliders: { balance: 4, sweetness: 4, clarity: 4, body: 4, finish: 4 },
+        },
+      });
+
+      // All-time should include BOTH brews
+      const allBody = json(await app.inject({ method: 'GET', url: '/api/analytics/stats?period=all' }));
+
+      // 30d should include only the recent brew, NOT the 6-month-old one
+      const monthBody = json(await app.inject({ method: 'GET', url: '/api/analytics/stats?period=30d' }));
+
+      // The 30d total must be strictly less than all-time total
+      // (the old brew is excluded)
+      expect(monthBody.totalBrews).toBeLessThan(allBody.totalBrews);
+
+      // 90d should also exclude the 6-month-old brew
+      const quarterBody = json(await app.inject({ method: 'GET', url: '/api/analytics/stats?period=90d' }));
+      expect(quarterBody.totalBrews).toBeLessThan(allBody.totalBrews);
     });
   });
 });
