@@ -18,7 +18,7 @@ alwaysApply: true
 | Client State | Zustand | ^5.0 |
 | Server State | TanStack React Query | ^5.64 |
 | Validation | Zod | ^3.24 |
-| Maps | Mapbox GL | ^3.9 |
+| Maps | SVG (Equirectangular projection, no deps) | — |
 | Language | TypeScript | ^5.7 |
 | Runtime | Node.js 22 | |
 
@@ -114,7 +114,7 @@ kissa/
 │   │   │   ├── OfflineIndicator.tsx
 │   │   │   ├── TastingNotesComparison.tsx
 │   │   │   ├── TastingNotesInput.tsx
-│   │   │   └── WorldMap.tsx        # Mapbox GL world map
+│   │   │   └── WorldMap.tsx        # SVG world map (Equirectangular projection, no deps)
 │   │   ├── lib/
 │   │   │   ├── hooks.ts            # useOnlineStatus, useOfflineSync, etc.
 │   │   │   ├── store.ts            # Zustand store

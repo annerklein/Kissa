@@ -151,6 +151,6 @@ A task is ONLY complete when ALL are true:
 11. **Onboarding** — Route/page exists but no auto-redirect. Home page works without it
 12. **Mobile is a scaffold** — `apps/mobile` has config but minimal screens
 13. **API URL detection** — `@kissa/api-client` tries `EXPO_PUBLIC_API_URL` then `NEXT_PUBLIC_API_URL` then fallback `http://kissa.local:3001`. Dev: `http://localhost:3001`
-14. **Mapbox dependency** — Analytics page needs Mapbox GL access token
+14. **World map is pure SVG** — Uses Equirectangular projection with real lat/lng coordinates. No external map library or access tokens needed
 15. **No CI/CD** — Deployment is manual via `deploy.sh`
 16. **Suggestion apply naming** — `applyTo: 'bag'` adjusts **bean-level** recipe (legacy naming)
