@@ -1,0 +1,203 @@
+---
+description: Deployment, backup, seed data, and development setup for the Kissa project.
+globs: deploy*.sh, docker/**, scripts/**, ha-addon/**, seed-coffee-data.sh, coffee-seed-data.json
+alwaysApply: false
+---
+
+# Deployment & Operations
+
+## How Deployment Works
+
+Images are **built locally** (Mac) for ARM64 and **transferred to Raspberry Pi** via SSH. ~1 min local build vs ~10+ min on RPi.
+
+**Prerequisites:** Docker with ARM64 support (Colima `--arch aarch64` or Docker Desktop), `expect` for SSH automation.
+
+## One-Click Deploy
+
+```bash
+./deploy.sh                     # Deploy everything
+./deploy.sh --api-only          # API only (faster)
+./deploy.sh --web-only          # Web only
+./deploy.sh --skip-build        # Redeploy existing images
+./deploy.sh --clean             # Clean old images after deploy
+./deploy.sh --rpi-host HOST --rpi-user USER --rpi-pass PASS  # Custom
+```
+
+**Default connection:** `$RPI_USER@$RPI_HOST` (password in .env)
+
+**What it does:**
+1. Builds Docker images with `--platform linux/arm64`
+2. Saves and gzip-compresses (~180MB API, ~350MB Web)
+3. Transfers to RPi via SSH pipe (scp not available on HA OS)
+4. Stops old containers, loads new images, starts new containers
+5. Waits for health checks to pass
+
+## Manual Deploy
+
+```bash
+# Build
+docker build --platform linux/arm64 -f docker/api.Dockerfile -t kissa-api:latest .
+docker build --platform linux/arm64 -f docker/web.Dockerfile -t kissa-web:latest .
+
+# Save and transfer (scp doesn't work on HA OS)
+docker save kissa-api:latest kissa-web:latest | gzip > /tmp/kissa-images.tar.gz
+cat /tmp/kissa-images.tar.gz | ssh $RPI_USER@$RPI_HOST 'cat > /tmp/kissa-images.tar.gz'
+
+# Load and start on RPi
+ssh $RPI_USER@$RPI_HOST 'sudo gunzip -c /tmp/kissa-images.tar.gz | sudo docker load'
+ssh $RPI_USER@$RPI_HOST 'sudo docker stop kissa-api kissa-web; sudo docker rm kissa-api kissa-web'
+ssh $RPI_USER@$RPI_HOST 'sudo docker run -d \
+  --name kissa-api --restart unless-stopped \
+  -p 3001:3001 -v kissa-data:/app/data \
+  -e DATABASE_URL=file:/app/data/kissa.db \
+  -e NODE_ENV=production -e PORT=3001 -e HOST=0.0.0.0 \
+  kissa-api:latest'
+ssh $RPI_USER@$RPI_HOST 'sudo docker run -d \
+  --name kissa-web --restart unless-stopped \
+  -p 3000:3000 -e NODE_ENV=production \
+  kissa-web:latest'
+```
+
+## API Container Startup
+
+`docker/api-start.sh` runs on container start:
+1. `prisma migrate deploy` (applies pending migrations)
+2. Seeds defaults via `seed.mjs`
+3. Verifies methods exist
+4. Starts Node.js server on port 3001
+
+Prisma client pre-generated for ARM64 at build time.
+
+## Docker Files
+
+| File | Purpose |
+|------|---------|
+| `docker/api.Dockerfile` | API (Fastify + Prisma + SQLite) |
+| `docker/web.Dockerfile` | Web (Next.js) |
+| `docker/api-start.sh` | API container startup script |
+| `docker/standalone.Dockerfile` | Single container (alternative) |
+| `docker/standalone-start.sh` | Standalone startup script |
+| `docker/docker-compose.yml` | Compose config (reference) |
+| `docker/docker-compose.dev.yml` | Dev with volume mounts |
+
+## Home Assistant Add-on
+
+`ha-addon/` contains a full HA add-on:
+- Per-architecture base images (aarch64, armv7, amd64)
+- Data at `/config/kissa/kissa.db` (included in HA backups)
+- Sidebar integration via ingress (`mdi:coffee`)
+- Uses `bashio` for HA logging
+- Registry: `ghcr.io/anner-klein/kissa-addon-{arch}`
+
+Install: copy `ha-addon/` to HA's `/addons` directory, or add GitHub repo as custom repository.
+
+## Database Backup
+
+### Overview
+
+Single SQLite file for all data. **The DB file is the only thing needed for a full backup.** No separate files or external assets.
+
+### Backup Endpoint
+
+```
+GET /internal/backup/db
+```
+
+Not in UI. Checkpoints WAL, streams DB file as download with timestamped filename.
+
+**Implementation:** `apps/api/src/routes/backup.ts`, registered in `apps/api/src/app.ts` under `/internal`.
+
+### Download Backup
+
+```bash
+# From production
+command curl -s -o kissa-backup.db http://<your-rpi-host>:3001/internal/backup/db
+
+# From dev
+command curl -s -o kissa-backup.db http://localhost:3001/internal/backup/db
+```
+
+**Fallback (SSH):**
+```bash
+ssh $RPI_USER@$RPI_HOST 'sudo docker cp kissa-api:/app/data/kissa.db /tmp/kissa-backup.db'
+ssh $RPI_USER@$RPI_HOST 'cat /tmp/kissa-backup.db' > backups/kissa-backup-$(date +%Y-%m-%d).db
+```
+
+### Restore Backup
+
+**On RPi:**
+```bash
+ssh $RPI_USER@$RPI_HOST 'sudo docker stop kissa-api'
+cat kissa-backup.db | ssh $RPI_USER@$RPI_HOST 'cat > /tmp/kissa-restore.db'
+ssh $RPI_USER@$RPI_HOST 'sudo cp /tmp/kissa-restore.db /var/lib/docker/volumes/kissa-data/_data/kissa.db'
+ssh $RPI_USER@$RPI_HOST 'sudo docker start kissa-api'
+```
+
+**Local dev:**
+```bash
+cp kissa-backup.db apps/api/prisma/data/kissa.db
+```
+
+### DB Location
+
+| Environment | Path |
+|-------------|------|
+| Local dev | `apps/api/prisma/data/kissa.db` |
+| Docker (RPi) | `/app/data/kissa.db` (volume: `kissa-data`) |
+| Standalone | `/data/kissa.db` (volume: `kissa-data`) |
+| HA Add-on | `/config/kissa/kissa.db` |
+
+## Seed Data
+
+### Default Seeds
+
+`seed.ts` / `seed.mjs` creates:
+- Default Settings (2 servings, 15g/serving)
+- Default GrinderState (Comandante C40, setting 20)
+- 4 methods: V60, Moka Pot, Espresso, French Press (with full recipes and steps)
+
+### Sample Coffee Data
+
+`seed-coffee-data.sh` seeds via running API:
+- 9 roasters (Israel, Netherlands, Spain, Japan)
+- 20 beans with origins, tasting notes, method recipes
+
+Source: `coffee-seed-data.json`
+
+## Development Setup
+
+### Prerequisites
+
+- Node.js 22+
+- pnpm 9+ (`corepack enable pnpm`)
+- Docker (deployment only)
+
+### Setup
+
+```bash
+pnpm install
+pnpm db:generate
+pnpm db:push
+pnpm --filter @kissa/api db:seed
+pnpm dev
+```
+
+Starts API at `http://localhost:3001` and Web at `http://localhost:3000`.
+
+### Useful Commands
+
+```bash
+pnpm build                              # Build all packages
+pnpm --filter @kissa/api test           # Run API tests
+pnpm --filter @kissa/api db:studio      # Prisma Studio GUI
+pnpm --filter @kissa/api db:migrate     # Create new migration
+pnpm --filter @kissa/api db:migrate:reset  # Reset database
+./seed-coffee-data.sh                   # Seed sample data (needs running API)
+```
+
+### Build Order (Turborepo)
+
+1. `@kissa/shared` (no deps)
+2. `@kissa/api-client` (depends on shared)
+3. `@kissa/api` (depends on shared)
+4. `@kissa/web` (depends on shared + api-client)

@@ -1,10 +1,10 @@
 ---
-description: API route development patterns for Kissa's Fastify backend.
+description: API route development patterns, complete endpoint reference, and recommendation engine for Kissa's Fastify backend.
 globs: apps/api/src/**/*.ts
 alwaysApply: false
 ---
 
-# API Route Patterns
+# API Routes
 
 ## Route File Structure
 
@@ -47,15 +47,138 @@ SQLite stores JSON as strings. Always:
 - **Write:** `JSON.stringify(value)` before storing
 - **Read:** `JSON.parse(field)` after fetching
 
+## API Endpoints Reference
+
+Base URL: `http://localhost:3001` (dev) / `http://<your-rpi-host>:3001` (prod)
+
+### Health
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check with DB status (method count, settings, grinder) |
+
+### Settings & Grinder
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/settings` | Get app settings |
+| PATCH | `/api/settings` | Update settings |
+| GET | `/api/grinder` | Get current grinder state |
+| POST | `/api/grinder/apply` | Apply new grinder setting |
+| PATCH | `/api/grinder` | Update grinder model name |
+
+### Roasters
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/roasters` | List all roasters |
+| GET | `/api/roasters/:id` | Get roaster with beans |
+| POST | `/api/roasters` | Create roaster |
+| PATCH | `/api/roasters/:id` | Update roaster |
+| DELETE | `/api/roasters/:id` | Delete roaster (cascades) |
+
+### Beans
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/beans` | List all beans (with roaster + bags) |
+| GET | `/api/beans/:id` | Full bean profile (recipes, bags, history, tasting notes) |
+| POST | `/api/beans` | Create bean |
+| PATCH | `/api/beans/:id` | Update bean |
+| DELETE | `/api/beans/:id` | Delete bean (cascades) |
+| POST | `/api/beans/:id/bags` | Add a bag to a bean |
+| PATCH | `/api/beans/:id/recipes/:methodId` | Upsert bean-method recipe |
+| DELETE | `/api/beans/:id/recipes/:methodId` | Delete bean-method recipe |
+
+### Bags
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/bags` | List all bags |
+| GET | `/api/bags/:id` | Get bag with bean, roaster, recipes, brew logs |
+| PATCH | `/api/bags/:id` | Update bag (status, availability, tubePosition) |
+| DELETE | `/api/bags/:id` | Delete bag |
+| GET | `/api/available-beans` | Available bags with grinder deltas. Query: `?methodId=` |
+
+### Methods
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/methods` | List active methods (v60, moka, espresso, french_press) |
+| GET | `/api/methods/:id` | Get method with parsed JSON fields |
+| GET | `/api/methods/name/:name` | Get method by name |
+
+### Brews
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/brews` | List brews. Query: `?bagId=` |
+| GET | `/api/brews/:id` | Get brew with bag, bean, roaster, method |
+| POST | `/api/brews` | Create brew (also updates grinder state) |
+| PATCH | `/api/brews/:id` | Update brew |
+| DELETE | `/api/brews/:id` | Delete brew |
+| GET | `/api/brews/screen` | Brew screen data. Query: `?bagId=&methodId=` |
+| PATCH | `/api/brews/:id/rating` | Submit rating (computes score + suggestion) |
+| POST | `/api/brews/:id/apply-suggestion` | Apply suggestion to recipe. Body: `{applyTo: 'bag'}` |
+
+### Analytics
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/analytics/map` | World map data (country counts + avg scores). Query: `?availableOnly=true` |
+| GET | `/api/analytics/country/:code` | Country drill-down with regions and bean rankings |
+| GET | `/api/analytics/region/:code` | Region drill-down (format: `country/region`) |
+
+### Onboarding
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/onboarding` | Bulk create settings, grinder, roasters, beans, bags |
+| GET | `/api/onboarding/status` | Check if onboarding complete |
+
+### Backup (Hidden)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/internal/backup/db` | Download SQLite DB. Checkpoints WAL first. Not in UI. |
+
+## Recommendation Engine
+
+Located at `src/recommendation/engine.ts`. Rule-based heuristic system (not ML).
+
+**Input:** Method type, rating sliders, drawdown time, brew parameters, previous brews.
+
+**Logic:**
+1. Assess extraction (under/good/over) via `getExtractionAssessment()`
+2. Interpret balance (sour/balanced/bitter) via `interpretBalance()`
+3. Apply method-specific rules:
+
+**V60 rules:**
+- Under-extracted + short drawdown → grind finer
+- Under-extracted + normal drawdown → increase temperature
+- Over-extracted + long drawdown → grind coarser
+- Over-extracted + normal drawdown → decrease temperature
+- Good extraction + low clarity → grind slightly coarser
+- Good extraction + low body → tighter ratio
+- Good extraction + everything good → keep settings
+
+**Moka rules:**
+- Under-extracted → grind finer + pre-heated water
+- Over-extracted → remove from heat earlier + cool base
+- Bitter + low finish → grind coarser
+- Low body → fill basket completely
+
+Each suggestion has `primary` and optional `secondary` with `variable`, `action`, `rationale`.
+
 ## Testing
 
-Tests live in `apps/api/src/__tests__/`. Run: `./scripts/run-tests.sh`
+Tests in `apps/api/src/__tests__/`. Run: `./scripts/run-tests.sh`
 
 - Use Vitest (`describe`, `it`, `expect`)
-- Share a single Fastify app via `getApp()` from `helpers.ts`
+- Share single Fastify app via `getApp()` from `helpers.ts`
 - Use `app.inject()` for requests (no HTTP server needed)
-- Use helpers: `createRoaster()`, `createBean()`, `createBag()`, `createBrewSetup()`
+- Helpers: `createRoaster()`, `createBean()`, `createBag()`, `createBrewSetup()`
 - Parse responses: `json(response)`
 - Tests run sequentially — data persists within a file
 
-**Test every feature:** happy path, validation errors (400), not-found (404), edge cases, side effects.
+**Test coverage:** happy path, validation errors (400), not-found (404), edge cases, side effects. Never `.skip` or `.todo` tests.

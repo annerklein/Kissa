@@ -1,10 +1,10 @@
 ---
 description: Web frontend development patterns for Kissa's Next.js app.
-globs: apps/web/**/*.tsx
+globs: apps/web/**
 alwaysApply: false
 ---
 
-# Web Page Patterns
+# Web Frontend Patterns
 
 ## Page Structure
 
@@ -26,10 +26,22 @@ async function fetchData() {
 }
 ```
 
-- Pages are in `app/` (not `src/app/`)
+- Pages in `app/` (not `src/app/`)
 - Components in `components/`, utilities in `lib/`
 - All pages are `'use client'` — no server components
 - Every page uses the same `API_URL` pattern above
+
+## Page Flow
+
+1. **Home** (`/`) — Pick brew method, see available beans with grinder deltas, tap to brew
+2. **Brew** (`/brew?bagId=...&methodId=...`) — Scaled recipe, grinder adjustment, start brewing
+3. **Rate** (`/rate?brewId=...`) — Rate brew (5 sliders), get suggestion
+4. **Beans** (`/beans`) — Browse all beans
+5. **Bean Detail** (`/beans/[id]`) — Edit bean, manage bags, view recipes per method, brew history
+6. **New Bean** (`/beans/new`) — Add new bean form
+7. **Roasters** (`/roasters`) — Browse roasters, tap to see detail
+8. **Roaster Detail** (`/roasters/[id]`) — Roaster info + all its beans
+9. **Analytics** (`/analytics`) — World map of origins with country drill-down
 
 ## Styling
 
@@ -48,13 +60,16 @@ async function fetchData() {
 - **Staggered animations:** `style={{ animationDelay: \`${index * 0.05}s\` }}`
 - **Badges:** `className="badge-primary"` or `className="badge bg-{color}-100 text-{color}-700"`
 - **Country flags:** `<CountryFlag country={code} size="sm" showName={true} />`
-- **Confirmation dialogs:** `<ConfirmDialog>` component with `variant="danger"` or `variant="warning"`
+- **Confirmation dialogs:** `<ConfirmDialog>` with `variant="danger"` or `variant="warning"`
+- **Tube position:** `<TubePositionIndicator position={pos} />` — three-slot visual bar
+- **Frozen bags:** `<FrozenBagCard>` with quick "Thaw" button
 
 ## State Management
 
 - **Server state:** TanStack React Query (`useQuery`, `useMutation`, `useQueryClient`)
 - **Client state:** Zustand store in `lib/store.ts` (grinder, settings, method)
 - **Invalidation:** always `queryClient.invalidateQueries({ queryKey: ['...'] })` after mutations
+- **Offline queue:** `lib/offline-queue.ts` — queues operations when offline, syncs on reconnect. Supported: CREATE_BREW, UPDATE_BREW, RATING, GRINDER_APPLY
 
 ## Naming
 

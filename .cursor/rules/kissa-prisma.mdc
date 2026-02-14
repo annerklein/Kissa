@@ -1,32 +1,70 @@
 ---
-description: Database schema and migration patterns for Kissa's Prisma/SQLite setup.
+description: Database schema, models, JSON conventions, and migration patterns for Kissa's Prisma/SQLite setup.
 globs: apps/api/prisma/**
 alwaysApply: false
 ---
 
-# Database & Migration Patterns
+# Database & Schema
 
-## Schema Location
-
-`apps/api/prisma/schema.prisma` — SQLite via Prisma ORM.
-
-## Key Conventions
-
-- **IDs:** UUIDs via `@default(uuid())`
-- **Timestamps:** `@default(now())` for createdAt, `@updatedAt` for updatedAt
-- **Singletons:** Settings and GrinderState use `id: 'default'`
-- **Enums:** defined in `@kissa/shared/types/enums.ts` AND in schema.prisma (keep in sync)
-- **JSON fields:** stored as `String` in schema, parsed/serialized in route handlers (not DB-level validation)
+SQLite via Prisma ORM. Schema at `apps/api/prisma/schema.prisma`.
 
 ## Entity Relationships
 
 ```
+Settings (singleton, id='default')
+GrinderState (singleton, id='default')
+
 Roaster ──1:N──> Bean ──1:N──> Bag ──1:N──> BrewLog
                    │                           │
                    └──1:N──> BeanMethodRecipe   │
                                   │             │
                              Method ────────────┘
 ```
+
+## Models
+
+| Model | Purpose | Key Fields |
+|-------|---------|------------|
+| **Settings** | App-wide defaults (singleton) | `defaultServings`, `gramsPerServing`, `displayPreferences` (JSON) |
+| **GrinderState** | Current grinder position (singleton) | `grinderModel`, `currentSetting` (float) |
+| **Roaster** | Coffee roaster/company | `name`, `country`, `website`, `logoUrl`, `notes` |
+| **Bean** | Coffee product (stable, re-buyable) | `name`, `roasterId` (FK), `originCountry`, `originRegion`, `varietal`, `process`, `roastLevel` (enum), `tastingNotesExpected` (JSON) |
+| **Bag** | Purchase instance of a bean | `beanId` (FK), `roastDate`, `openedDate`, `bagSizeGrams`, `status` (UNOPENED/OPEN/FINISHED/FROZEN), `isAvailable`, `tubePosition` (LEFT/MIDDLE/RIGHT), `frozenAt`, `totalFrozenDays`, `isFrozenBag` |
+| **Method** | Brewing method | `name` (unique: v60/moka/espresso/french_press), `displayName`, `scalingRules` (JSON), `defaultParams` (JSON), `steps` (JSON) |
+| **BeanMethodRecipe** | Per-bean grind target for a method | `beanId` + `methodId` (unique pair), `grinderTarget` (float), `recipeOverrides` (JSON) |
+| **BrewLog** | Record of an actual brew | `bagId` (FK), `methodId` (FK), `parameters` (JSON), `ratingSliders` (JSON), `drawdownTime`, `computedScore`, `tastingNotesActual` (JSON), `notes`, `suggestionShown` (JSON), `suggestionAccepted` |
+
+## JSON Field Conventions
+
+Several fields store JSON as strings in SQLite. Serialized with `JSON.stringify()` on write, `JSON.parse()` on read in route handlers.
+
+| Field | Example Value |
+|-------|---------------|
+| `Method.defaultParams` | `{"ratio": 16, "waterTemp": 96, "grindSize": 40, "dose": 15, "bloomRatio": 2, "bloomTime": 45}` |
+| `Method.steps` | `[{"name": "Bloom", "waterRatio": 2, "duration": 45, "notes": "..."}]` |
+| `Method.scalingRules` | `{"scalesPours": true, "scalesDose": true, "scalesWater": true}` |
+| `BrewLog.ratingSliders` | `{"balance": 7, "sweetness": 6, "clarity": 8, "body": 7, "finish": 6}` |
+| `BrewLog.parameters` | `{"dose": 30, "water": 480, "grindSize": 22, "waterTemp": 96}` |
+| `Bean.tastingNotesExpected` | `["chocolate", "caramel", "nutty"]` |
+
+## Key Conventions
+
+- **IDs:** UUIDs via `@default(uuid())`
+- **Timestamps:** `@default(now())` for createdAt, `@updatedAt` for updatedAt
+- **Singletons:** Settings and GrinderState use `id: 'default'`
+- **Enums:** Defined in BOTH `@kissa/shared/types/enums.ts` AND `schema.prisma` — keep in sync
+- **JSON fields:** Stored as `String` in schema, parsed/serialized in route handlers
+
+## Migrations
+
+Migrations in `apps/api/prisma/migrations/`:
+
+1. `20260124125519_add_roaster_logo` — Initial schema (all tables)
+2. `20260124142211_move_recipes_to_bean` — Recipes from per-bag to per-bean (`BeanMethodRecipe`)
+3. `20260214092432_add_tube_position_to_bag` — Added `tubePosition` (LEFT/MIDDLE/RIGHT) to Bag
+4. `20260214140000_add_freeze_bag_support` — Added FROZEN status, `frozenAt`, `totalFrozenDays`, `isFrozenBag` to Bag
+
+Applied via `npx prisma migrate deploy` (production) or `pnpm db:migrate` (dev).
 
 ## Creating a Migration
 
@@ -35,18 +73,18 @@ Roaster ──1:N──> Bean ──1:N──> Bag ──1:N──> BrewLog
 # 2. Create migration
 pnpm --filter @kissa/api db:migrate
 
-# 3. Update README.md Migrations section with the new migration
+# 3. Update this rule's Migrations section
 # 4. If new enum values: update packages/shared/src/types/enums.ts
 # 5. If new Zod schema needed: update packages/shared/src/types/schemas.ts
 ```
 
 ## Two Seed Files (KEEP IN SYNC)
 
-- `prisma/seed.ts` — TypeScript, used in development (`tsx`)
-- `prisma/seed.mjs` — JavaScript, used in production Docker (no `tsx` available)
+- `prisma/seed.ts` — TypeScript, dev (`tsx`)
+- `prisma/seed.mjs` — JavaScript, production Docker (no `tsx`)
 
-Both create: default Settings, default GrinderState, 4 brew methods. If you change one, change the other.
+Both create: default Settings, default GrinderState, 4 brew methods. Change one → change the other.
 
 ## Production Migrations
 
-Applied automatically on container startup via `docker/api-start.sh` → `prisma migrate deploy`. No manual steps needed — just deploy and the migration runs.
+Applied automatically on container startup via `docker/api-start.sh` → `prisma migrate deploy`.

@@ -1,0 +1,325 @@
+---
+description: Project overview, structure, domain concepts, and shared packages for the Kissa coffee tracking app.
+alwaysApply: true
+---
+
+# Kissa Project Overview
+
+## Tech Stack
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Monorepo | Turborepo + pnpm workspaces | Turbo ^2.3, pnpm 9.15 |
+| API | Node.js + Fastify | Fastify ^5.2 |
+| Database | SQLite + Prisma ORM | Prisma ~6.19 |
+| Web | Next.js (App Router) | Next ^15.1 |
+| Mobile | React Native + Expo Router | Expo ~52, RN 0.76 |
+| UI | Tailwind CSS | ^3.4 |
+| Client State | Zustand | ^5.0 |
+| Server State | TanStack React Query | ^5.64 |
+| Validation | Zod | ^3.24 |
+| Maps | Mapbox GL | ^3.9 |
+| Language | TypeScript | ^5.7 |
+| Runtime | Node.js 22 | |
+
+## Monorepo Structure
+
+```
+kissa/
+├── apps/
+│   ├── api/                        # Fastify REST API server
+│   │   ├── src/
+│   │   │   ├── app.ts              # Fastify app builder, registers all routes
+│   │   │   ├── index.ts            # Entry point, starts server
+│   │   │   ├── db/
+│   │   │   │   └── client.ts       # Prisma client singleton
+│   │   │   ├── routes/
+│   │   │   │   ├── settings.ts     # GET/PATCH /api/settings
+│   │   │   │   ├── grinder.ts      # GET/POST/PATCH /api/grinder
+│   │   │   │   ├── roasters.ts     # CRUD /api/roasters
+│   │   │   │   ├── beans.ts        # CRUD /api/beans, recipes, bags
+│   │   │   │   ├── bags.ts         # CRUD /api/bags, /api/available-beans
+│   │   │   │   ├── methods.ts      # GET /api/methods
+│   │   │   │   ├── brews.ts        # CRUD /api/brews, rating, suggestions
+│   │   │   │   ├── analytics.ts    # GET /api/analytics/map, country, region
+│   │   │   │   ├── onboarding.ts   # POST /api/onboarding
+│   │   │   │   └── backup.ts       # GET /internal/backup/db
+│   │   │   ├── recommendation/
+│   │   │   │   └── engine.ts       # Rule-based suggestion generator
+│   │   │   └── __tests__/
+│   │   │       ├── helpers.ts      # Shared test utilities
+│   │   │       ├── api.test.ts     # Cross-cutting integration tests
+│   │   │       ├── health.test.ts
+│   │   │       ├── settings.test.ts
+│   │   │       ├── grinder.test.ts
+│   │   │       ├── roasters.test.ts
+│   │   │       ├── beans.test.ts
+│   │   │       ├── bags.test.ts
+│   │   │       ├── methods.test.ts
+│   │   │       ├── brews.test.ts
+│   │   │       ├── analytics.test.ts
+│   │   │       ├── onboarding.test.ts
+│   │   │       └── recommendation.test.ts
+│   │   ├── vitest.config.ts
+│   │   ├── prisma/
+│   │   │   ├── schema.prisma       # Database schema
+│   │   │   ├── seed.ts             # TypeScript seed (dev)
+│   │   │   ├── seed.mjs            # JS seed (production Docker)
+│   │   │   ├── data/
+│   │   │   │   └── kissa.db        # SQLite database file (dev)
+│   │   │   └── migrations/
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   ├── web/                        # Next.js web application
+│   │   ├── app/
+│   │   │   ├── layout.tsx          # Root layout (fonts, navigation, providers)
+│   │   │   ├── page.tsx            # Home: method picker + available beans
+│   │   │   ├── providers.tsx       # React Query provider
+│   │   │   ├── globals.css         # Tailwind + custom CSS
+│   │   │   ├── beans/
+│   │   │   │   ├── page.tsx        # Bean list
+│   │   │   │   ├── [id]/page.tsx   # Bean detail (recipes, bags, brew history)
+│   │   │   │   └── new/page.tsx    # Add new bean form
+│   │   │   ├── brew/
+│   │   │   │   └── page.tsx        # Brew execution screen
+│   │   │   ├── rate/
+│   │   │   │   └── page.tsx        # Post-brew rating screen
+│   │   │   ├── roasters/
+│   │   │   │   ├── page.tsx        # Roaster list
+│   │   │   │   └── [id]/page.tsx   # Roaster detail
+│   │   │   ├── analytics/
+│   │   │   │   └── page.tsx        # World map + analytics
+│   │   │   └── onboarding/
+│   │   │       └── page.tsx        # First-run setup flow
+│   │   ├── components/
+│   │   │   ├── Navigation.tsx      # Bottom nav bar
+│   │   │   ├── MethodPicker.tsx    # Brew method selection
+│   │   │   ├── GrinderCard.tsx     # Grinder setting + delta display
+│   │   │   ├── ServingsControl.tsx # Servings adjustment
+│   │   │   ├── RecipeCard.tsx      # Scaled recipe display
+│   │   │   ├── RatingSlider.tsx    # Rating attribute slider
+│   │   │   ├── SuggestionCard.tsx  # Post-rating suggestion
+│   │   │   ├── AvailableBeanCard.tsx
+│   │   │   ├── BagCard.tsx
+│   │   │   ├── AddBagModal.tsx
+│   │   │   ├── TubePositionIndicator.tsx
+│   │   │   ├── FrozenBagCard.tsx
+│   │   │   ├── BeanRankingList.tsx
+│   │   │   ├── ConfirmDialog.tsx
+│   │   │   ├── CountryFlag.tsx
+│   │   │   ├── CountryList.tsx
+│   │   │   ├── Logo.tsx
+│   │   │   ├── OfflineIndicator.tsx
+│   │   │   ├── TastingNotesComparison.tsx
+│   │   │   ├── TastingNotesInput.tsx
+│   │   │   └── WorldMap.tsx        # Mapbox GL world map
+│   │   ├── lib/
+│   │   │   ├── hooks.ts            # useOnlineStatus, useOfflineSync, etc.
+│   │   │   ├── store.ts            # Zustand store
+│   │   │   └── offline-queue.ts    # Offline operation queue
+│   │   ├── public/
+│   │   │   └── logo.png
+│   │   ├── next.config.js
+│   │   ├── tailwind.config.js
+│   │   ├── postcss.config.js
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   └── mobile/                     # React Native / Expo (scaffold)
+│       ├── app.config.js
+│       ├── package.json
+│       └── tsconfig.json
+│
+├── packages/
+│   ├── shared/                     # @kissa/shared
+│   │   └── src/
+│   │       ├── index.ts
+│   │       ├── types/
+│   │       │   ├── index.ts
+│   │       │   ├── schemas.ts      # Zod schemas
+│   │       │   ├── api.ts          # API response types
+│   │       │   └── enums.ts        # RoastLevel, BagStatus, etc.
+│   │       ├── constants/
+│   │       │   ├── index.ts
+│   │       │   ├── tasting-notes.ts
+│   │       │   └── methods.ts
+│   │       ├── scoring/
+│   │       │   └── index.ts        # computeSmartScore, etc.
+│   │       └── utils/
+│   │           ├── index.ts
+│   │           ├── grinder.ts      # computeGrinderDelta
+│   │           └── date.ts         # Date formatting
+│   │
+│   └── api-client/                 # @kissa/api-client
+│       └── src/
+│           ├── index.ts
+│           ├── config.ts           # API_URL + endpoint definitions
+│           └── client.ts           # fetchApi<T>, typed API objects
+│
+├── docker/
+│   ├── api.Dockerfile
+│   ├── web.Dockerfile
+│   ├── api-start.sh
+│   ├── standalone.Dockerfile
+│   ├── standalone-start.sh
+│   ├── docker-compose.yml
+│   └── docker-compose.dev.yml
+│
+├── ha-addon/                       # Home Assistant add-on
+│   ├── repository.yaml
+│   └── kissa/
+│       ├── config.yaml
+│       ├── Dockerfile
+│       ├── run.sh
+│       ├── build.yaml
+│       ├── DOCS.md
+│       └── CHANGELOG.md
+│
+├── scripts/
+│   ├── backup.sh
+│   ├── run-tests.sh
+│   └── verify-deploy.sh
+│
+├── .cursor/rules/                   # Agent rules (technical docs)
+│   ├── kissa-agent.mdc
+│   ├── kissa-project.mdc
+│   ├── kissa-api-routes.mdc
+│   ├── kissa-web-pages.mdc
+│   ├── kissa-prisma.mdc
+│   └── kissa-deploy.mdc
+│
+├── deploy.sh
+├── deploy-rpi.sh
+├── seed-coffee-data.sh
+├── coffee-seed-data.json
+├── package.json
+├── pnpm-workspace.yaml
+├── turbo.json
+├── tsconfig.json
+└── .dockerignore
+```
+
+## Apps
+
+### API (`apps/api`)
+
+Fastify REST API backed by SQLite via Prisma.
+
+- **Entry point:** `src/index.ts` creates server and starts listening
+- **App builder:** `src/app.ts` registers CORS, all route plugins under `/api`, `/health`, and `/internal/backup/db`
+- **Prisma client:** Singleton from `src/db/client.ts`
+- **Recommendation engine:** Pure function in `src/recommendation/engine.ts`, called during brew rating
+
+| Script | Description |
+|--------|-------------|
+| `dev` | `tsx watch src/index.ts` |
+| `build` | `tsc && tsc-alias` |
+| `start` | `node dist/index.js` |
+| `db:generate` | Generate Prisma client |
+| `db:push` | Push schema to DB |
+| `db:migrate` | Create and apply migrations |
+| `db:seed` | `tsx prisma/seed.ts` |
+| `db:studio` | Open Prisma Studio |
+| `test` | `vitest run` |
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `file:./data/kissa.db` | SQLite path |
+| `PORT` | `3001` | API port |
+| `HOST` | `0.0.0.0` | Listen address |
+
+### Web (`apps/web`)
+
+Next.js 15 app (App Router). No API routes — calls external Fastify API.
+
+- Pages in `app/` (not `src/app/`). Components in `components/`, utilities in `lib/`
+- All pages are `'use client'` — no server components
+- `app/providers.tsx` wraps in `QueryClientProvider`
+- `app/layout.tsx` loads Google Fonts (Bricolage Grotesque + Fraunces) and renders `<Navigation />`
+- Uses `@kissa/api-client` for all API calls
+- Offline support via `lib/offline-queue.ts` (CREATE_BREW, UPDATE_BREW, RATING, GRINDER_APPLY)
+- Zustand store (`lib/store.ts`) persists grinder state, settings, selected method, pending brews
+- Custom coffee palette: `coffee-50` through `coffee-900`, `accent-warm`, `accent-cream`, `accent-espresso`
+- Custom animations: `fade-in`, `slide-up`, `scale-in`, `pulse-soft`
+- Fonts: `--font-bricolage` (sans) and `--font-fraunces` (display/serif)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_URL` | `http://localhost:3001` | API URL (in `next.config.js`) |
+| `NEXT_PUBLIC_API_URL` | (none) | Client-side API URL override |
+
+### Mobile (`apps/mobile`)
+
+React Native + Expo scaffold. Not fully built. Uses `@kissa/shared` and `@kissa/api-client`. Excluded from Docker builds. Bundle ID `com.kissa.app`, scheme `kissa`.
+
+## Packages
+
+### `@kissa/shared`
+
+Shared code for API, Web, and Mobile. ESM with TypeScript declarations.
+
+| Path | Contents |
+|------|----------|
+| `@kissa/shared` | Everything (re-export barrel) |
+| `@kissa/shared/types` | Zod schemas (`SettingsUpdateSchema`, `GrinderApplySchema`, `BeanCreateSchema`, `BagCreateSchema`, `BagUpdateSchema`, `BrewLogCreateSchema`, `BrewLogRatingSchema`, `OnboardingDataSchema`, `RoasterCreateSchema`, `TubePositionSchema`), API response types, enums (`RoastLevel`, `BagStatus` incl. `FROZEN`, `TubePosition`) |
+| `@kissa/shared/constants` | Tasting note categories, method constants |
+| `@kissa/shared/scoring` | `computeSmartScore(sliders)`, `computeBestScore(scores)`, `interpretBalance(balance)`, `getExtractionAssessment(sliders)` |
+| `@kissa/shared/utils` | `computeGrinderDelta(current, target)`, date formatting, `computeEffectiveDaysOffRoast()`, `computeTotalFrozenDays()` |
+
+### `@kissa/api-client`
+
+Type-safe HTTP client wrapping `fetch`.
+
+**API URL resolution:** Dev → `http://localhost:3001` | `EXPO_PUBLIC_API_URL` | `NEXT_PUBLIC_API_URL` | Fallback: `http://kissa.local:3001`
+
+**Exported:** `settingsApi`, `grinderApi`, `roastersApi`, `beansApi`, `bagsApi`, `methodsApi`, `brewsApi`, `analyticsApi`, `onboardingApi`, `healthApi`
+
+Each has typed methods like `beansApi.getAll()`, `beansApi.getById(id)`, `beansApi.create(data)`.
+
+## Domain Concepts
+
+### Bean vs Bag
+
+A **Bean** is a coffee product (e.g., "Ethiopia Yirgacheffe" from a specific roaster). Stable and re-purchasable. A **Bag** is a specific purchase instance with a roast date. Multiple bags per bean. Recipes (grinder targets) are stored at the **Bean** level.
+
+### Tube Position
+
+Open bags can be assigned a **tube position**: Left, Middle, or Right. Corresponds to physical container placement. Nullable on `Bag` — only meaningful for OPEN bags. Displayed as a compact three-slot visual indicator.
+
+### Freeze Bag
+
+Bags can be **frozen** to pause the aging clock. Two entry points:
+1. **Freeze existing** — UNOPENED/OPEN → FROZEN, sets `frozenAt`, removes from rotation
+2. **Create frozen** — "Add Bag" modal with freeze toggle. Sets `isFrozenBag: true` (marks as split, not separate purchase)
+
+**Thaw:** Frozen duration added to `totalFrozenDays`, `frozenAt` cleared, status → OPEN, added to rotation.
+
+**Effective days off roast:** `(today - roastDate) - totalFrozenDays - currentFreezeDuration`. Computed by `computeEffectiveDaysOffRoast()`.
+
+**Multiple cycles:** Supported. `totalFrozenDays` accumulates.
+
+**Home page:** Frozen bags in collapsible section with compact card and quick "Thaw" button.
+
+### Grinder Delta
+
+Tracks a single grinder's current setting. Shows delta from current position to target for bean/method ("+3 clicks coarser" not "set to 25"). Grinder state updates when a brew starts.
+
+### Smart Score
+
+5 sliders (1-10): Balance (25%), Sweetness (25%), Clarity (20%), Body (15%), Finish (15%). Computed by `computeSmartScore()`.
+
+### Brew Flow
+
+1. Select method on home page
+2. See available beans with grinder deltas
+3. Tap bean → brew screen with scaled recipe
+4. Shows: grinder adjustment, dose, water, temperature, steps
+5. Recipe scales: `settings.defaultServings * recipe.dose`
+6. After brew → rate screen
+7. Rating generates suggestion via recommendation engine
+8. User can accept suggestion (adjusts bean's recipe)
+
+### Scaling Rules
+
+Each method defines `scalingRules` (JSON): `scalesPours`, `scalesDose`, `scalesWater`.

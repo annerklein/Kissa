@@ -1,11 +1,13 @@
 ---
-description: Core agent workflow for the Kissa coffee tracking project. Defines the mandatory task lifecycle, definition of done, and operational rules every agent must follow.
+description: Core agent workflow for the Kissa coffee tracking project. Defines the mandatory task lifecycle, definition of done, conventions, and operational rules.
 alwaysApply: true
 ---
 
 # Kissa Agent Workflow
 
-Kissa is a self-hosted coffee tracking app (Fastify API + Next.js Web + SQLite) deployed to a Raspberry Pi. Single user, no auth. Full project documentation is in `README.md` — read it before any task.
+Kissa is a self-hosted coffee tracking app (Fastify API + Next.js Web + SQLite) deployed to a Raspberry Pi. Single user, no auth.
+
+All technical documentation lives in `.cursor/rules/`. The README is a user-facing overview only — never rely on it for technical details.
 
 ## Task Lifecycle (MANDATORY ORDER)
 
@@ -19,19 +21,28 @@ Before starting ANY work, ensure today's database backup exists:
 ./scripts/backup.sh
 ```
 
-This checks `backups/kissa-backup-YYYY-MM-DD.db` and downloads from production if missing. Run with `required_permissions: ["all"]` (needs network + SSH).
+Run with `required_permissions: ["all"]` (needs network + SSH). Checks `backups/kissa-backup-YYYY-MM-DD.db` and downloads from production if missing.
 
 ### Step 2: Implement the Change
 
-- Read `README.md` for project structure, API reference, DB schema, and conventions
+- Read the relevant cursor rules for project structure, patterns, and conventions
 - Write code following patterns in the file-specific rules (`kissa-api-routes`, `kissa-web-pages`, `kissa-prisma`)
-- If adding/modifying API endpoints, update the `README.md` API Endpoints Reference section
-- If changing files or directory structure, update the `README.md` Monorepo Structure section
-- If changing DB schema, update the `README.md` Database Schema section
+- If your change affects documented patterns, update the corresponding cursor rule (see table below)
 
-### Step 3: Update README.md
+### Step 3: Update Cursor Rules
 
-The README is the single source of truth. Every code change MUST have a corresponding README update. See the "What to Update" table in `README.md` under the Agent Instructions section.
+Every code change MUST have a corresponding cursor rule update if it affects documented patterns:
+
+| Change Type | Rule File to Update |
+|-------------|-------------------|
+| Add/remove/rename files | `kissa-project.mdc` (Monorepo Structure) |
+| Add/change API endpoints | `kissa-api-routes.mdc` (Endpoints Reference) |
+| Modify database schema | `kissa-prisma.mdc` (Models, Migrations) |
+| Change deployment config | `kissa-deploy.mdc` |
+| Add packages/dependencies | `kissa-project.mdc` (Tech Stack, Packages) |
+| New domain concepts | `kissa-project.mdc` (Domain Concepts) |
+| New quirks discovered | This file (Known Quirks) |
+| New code conventions | This file (Conventions) |
 
 ### Step 4: Run Tests
 
@@ -39,7 +50,7 @@ The README is the single source of truth. Every code change MUST have a correspo
 ./scripts/run-tests.sh
 ```
 
-All 145+ tests must pass. If your change needs new tests, add them to `apps/api/src/__tests__/`. See the `kissa-api-routes` rule for test conventions.
+All 145+ tests must pass. If your change needs new tests, add them to `apps/api/src/__tests__/`. See `kissa-api-routes` rule for test conventions.
 
 ### Step 5: Deploy to Production
 
@@ -54,7 +65,7 @@ All 145+ tests must pass. If your change needs new tests, add them to `apps/api/
 ./deploy.sh --clean
 ```
 
-Run with `required_permissions: ["all"]`. Deploy takes ~2 minutes. The script builds ARM64 Docker images locally, transfers via SSH, and restarts containers.
+Run with `required_permissions: ["all"]`. Takes ~2 minutes. See `kissa-deploy` rule for details.
 
 ### Step 6: Verify Deployment
 
@@ -69,7 +80,7 @@ Run with `required_permissions: ["full_network"]`. Also manually test the new fe
 Use conventional commit prefixes: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `schema:`, `perf:`
 
 Break work into logical atomic commits. Typical sequence:
-1. Schema/migration → 2. API routes → 3. Shared packages → 4. Web UI → 5. Tests → 6. README
+1. Schema/migration → 2. API routes → 3. Shared packages → 4. Web UI → 5. Tests → 6. Docs/rules
 
 Never `git add .` blindly. Always `git status` + `git diff` first. Never commit `*.db`, `node_modules/`, `dist/`, `.next/`, `backups/`.
 
@@ -77,11 +88,11 @@ Never `git add .` blindly. Always `git status` + `git diff` first. Never commit 
 
 A task is ONLY complete when ALL are true:
 - [ ] Code changes implemented
-- [ ] README.md updated
+- [ ] Cursor rules updated (if documented patterns changed)
 - [ ] Tests written and full suite passes (`./scripts/run-tests.sh`)
 - [ ] Deployed to RPi (`./deploy.sh`)
 - [ ] Deployment verified (`./scripts/verify-deploy.sh` + manual feature test)
-- [ ] **ALL changes committed** — every modified, added, or deleted file must be committed with proper conventional commit messages. Run `git status` to confirm a clean working tree. No uncommitted work may be left behind. Break into logical atomic commits (schema → API → shared → web → tests → docs).
+- [ ] **ALL changes committed** — run `git status` to confirm clean working tree
 
 **Do NOT tell the user you are "done" until every box is checked. A clean `git status` (no modified/untracked project files) is the final gate.**
 
@@ -95,13 +106,51 @@ A task is ONLY complete when ALL are true:
 | Backup | `http://<your-rpi-host>:3001/internal/backup/db` |
 | SSH | `$RPI_USER@$RPI_HOST` (password in .env) |
 
-## Critical Gotchas
+## Conventions
+
+### Code Organization
+- **Route files** export a single async function registered as a Fastify plugin
+- **Zod schemas** in `@kissa/shared`, imported by API (validation) and client (type inference)
+- **JSON fields** stored as `string | null` in SQLite, parsed/serialized in route handlers
+- **IDs** are UUIDs via Prisma `@default(uuid())`
+- **Timestamps** use `@default(now())` and `@updatedAt`
+
+### Naming
+- Route files: lowercase plural (`roasters.ts`, `beans.ts`)
+- Components: PascalCase (`GrinderCard.tsx`)
+- Hooks: camelCase with `use` prefix (`useOnlineStatus`)
+- API endpoints: REST plural nouns (`/api/beans`)
+- Method names in DB: lowercase underscores (`v60`, `french_press`)
+
+### State Management (Web)
+- **Server state**: TanStack React Query
+- **Client state**: Zustand with localStorage persistence
+- **Offline queue**: `lib/offline-queue.ts` retries failed operations
+
+### Error Handling (API)
+- 400: `{ error: 'ValidationError', message: '...' }`
+- 404: `{ error: 'NotFound', message: '...' }`
+
+### TypeScript
+- ES2022 target, NodeNext module, strict mode
+- API path aliases: `@/*` -> `./src/*` (resolved by `tsc-alias`)
+- Web: Next.js bundler module resolution
+
+## Known Quirks
 
 1. **Always use `command curl`** — this machine has shell aliases that break regular `curl`
-2. **Deploy script needs `required_permissions: ["all"]`** — it uses SSH, Docker, and network
-3. **Two seed files exist** — `seed.ts` (dev, TypeScript) and `seed.mjs` (production, JS). Keep them in sync
-4. **JSON-in-SQLite** — many DB fields store JSON as strings. Parse on read, stringify on write in route handlers
+2. **Deploy script needs `required_permissions: ["all"]`** — uses SSH, Docker, and network
+3. **Two seed files** — `seed.ts` (dev) and `seed.mjs` (production Docker). Keep in sync
+4. **JSON-in-SQLite** — many fields store JSON as strings. Parse on read, stringify on write
 5. **Brew creation side effect** — `POST /api/brews` auto-updates grinder state to match `grindSize`
-6. **Singleton pattern** — Settings and GrinderState use `id: 'default'`. Route handlers auto-create if missing
+6. **Singleton pattern** — Settings and GrinderState use `id: 'default'`. Auto-created if missing
 7. **No auth** — zero authentication. Single user on local network
-8. **`pnpm@9.15.0`** — specified in root `package.json`. Different versions cause lockfile conflicts
+8. **`pnpm@9.15.0`** — specified in `package.json`. Different versions cause lockfile conflicts
+9. **Cross-arch Prisma** — Docker builds with `--platform linux/arm64`, Prisma pre-generated for ARM
+10. **Method ordering** — `GET /api/methods` sorts in hardcoded order, not DB order
+11. **Onboarding** — Route/page exists but no auto-redirect. Home page works without it
+12. **Mobile is a scaffold** — `apps/mobile` has config but minimal screens
+13. **API URL detection** — `@kissa/api-client` tries `EXPO_PUBLIC_API_URL` then `NEXT_PUBLIC_API_URL` then fallback `http://kissa.local:3001`. Dev: `http://localhost:3001`
+14. **Mapbox dependency** — Analytics page needs Mapbox GL access token
+15. **No CI/CD** — Deployment is manual via `deploy.sh`
+16. **Suggestion apply naming** — `applyTo: 'bag'` adjusts **bean-level** recipe (legacy naming)
