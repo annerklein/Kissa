@@ -140,6 +140,7 @@ kissa/
 │   │   │   ├── AddBagModal.tsx
 │   │   │   ├── TubePositionIndicator.tsx  # Tube position display & picker components
 │   │   │   ├── FrozenBagCard.tsx          # Compact frozen bag card with quick unfreeze button
+│   │   │   ├── BrewStats.tsx             # Brew statistics dashboard (totals, charts, rankings)
 │   │   │   ├── BeanRankingList.tsx
 │   │   │   ├── ConfirmDialog.tsx
 │   │   │   ├── CountryFlag.tsx
@@ -296,7 +297,7 @@ A Next.js 15 app using the App Router. No API routes -- it calls the external Fa
 6. **New Bean** (`/beans/new`) - Add a new bean
 7. **Roasters** (`/roasters`) - Browse roasters, tap a roaster to see its beans
 8. **Roaster Detail** (`/roasters/[id]`) - View roaster info and all its beans, tap a bean to go to its detail/edit page
-9. **Analytics** (`/analytics`) - World map of coffee origins with country drill-down
+9. **Analytics** (`/analytics`) - World map of coffee origins with country drill-down, plus brew statistics tab (totals, method breakdown, top beans, rating profile, tasting notes, activity chart) with time-period filtering
 
 **Environment variables:**
 | Variable | Default | Description |
@@ -490,6 +491,7 @@ Base URL: `http://localhost:3001` (dev) / `http://<your-rpi-host>:3001` (product
 | GET | `/api/analytics/map` | World map data (country counts + avg scores). Query: `?availableOnly=true` |
 | GET | `/api/analytics/country/:code` | Country drill-down with regions and bean rankings |
 | GET | `/api/analytics/region/:code` | Region drill-down (format: `country/region`) |
+| GET | `/api/analytics/stats` | Brew statistics (totals, method breakdown, top beans, avg sliders, tasting notes, activity). Query: `?period=all\|year\|90d\|30d` |
 
 ### Onboarding
 | Method | Path | Description |
