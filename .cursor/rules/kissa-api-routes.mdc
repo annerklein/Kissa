@@ -128,6 +128,7 @@ Base URL: `http://localhost:3001` (dev) / `http://<your-rpi-host>:3001` (prod)
 | GET | `/api/analytics/map` | World map data (country counts + avg scores). Query: `?availableOnly=true` |
 | GET | `/api/analytics/country/:code` | Country drill-down with regions and bean rankings |
 | GET | `/api/analytics/region/:code` | Region drill-down (format: `country/region`) |
+| GET | `/api/analytics/stats` | Brew statistics (totals, method breakdown, top beans, avg sliders, tasting notes, activity chart, best score bean). Query: `?period=all\|year\|90d\|30d` |
 
 ### Onboarding
 

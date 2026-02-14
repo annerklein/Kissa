@@ -41,7 +41,7 @@ async function fetchData() {
 6. **New Bean** (`/beans/new`) — Add new bean form
 7. **Roasters** (`/roasters`) — Browse roasters, tap to see detail
 8. **Roaster Detail** (`/roasters/[id]`) — Roaster info + all its beans
-9. **Analytics** (`/analytics`) — World map of origins with country drill-down
+9. **Analytics** (`/analytics`) — Map/Stats tab toggle. Map: world map of origins with country drill-down. Stats: brew statistics dashboard (totals, activity chart, method breakdown, rating profile, top beans, tasting notes) with period filtering (All Time / This Year / 90 Days / 30 Days)
 
 ## Styling
 

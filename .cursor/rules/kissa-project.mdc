@@ -41,7 +41,7 @@ kissa/
 │   │   │   │   ├── bags.ts         # CRUD /api/bags, /api/available-beans
 │   │   │   │   ├── methods.ts      # GET /api/methods
 │   │   │   │   ├── brews.ts        # CRUD /api/brews, rating, suggestions
-│   │   │   │   ├── analytics.ts    # GET /api/analytics/map, country, region
+│   │   │   │   ├── analytics.ts    # GET /api/analytics/map, country, region, stats
 │   │   │   │   ├── onboarding.ts   # POST /api/onboarding
 │   │   │   │   └── backup.ts       # GET /internal/backup/db
 │   │   │   ├── recommendation/
@@ -89,7 +89,7 @@ kissa/
 │   │   │   │   ├── page.tsx        # Roaster list
 │   │   │   │   └── [id]/page.tsx   # Roaster detail
 │   │   │   ├── analytics/
-│   │   │   │   └── page.tsx        # World map + analytics
+│   │   │   │   └── page.tsx        # Map/Stats tabs (world map + brew stats)
 │   │   │   └── onboarding/
 │   │   │       └── page.tsx        # First-run setup flow
 │   │   ├── components/
@@ -105,6 +105,7 @@ kissa/
 │   │   │   ├── AddBagModal.tsx
 │   │   │   ├── TubePositionIndicator.tsx
 │   │   │   ├── FrozenBagCard.tsx
+│   │   │   ├── BrewStats.tsx             # Brew statistics dashboard
 │   │   │   ├── BeanRankingList.tsx
 │   │   │   ├── ConfirmDialog.tsx
 │   │   │   ├── CountryFlag.tsx
