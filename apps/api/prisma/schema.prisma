@@ -81,20 +81,25 @@ enum BagStatus {
   UNOPENED
   OPEN
   FINISHED
+  FROZEN
 }
 
 model Bag {
-  id           String    @id @default(uuid())
-  beanId       String
-  bean         Bean      @relation(fields: [beanId], references: [id], onDelete: Cascade)
-  roastDate    DateTime
-  openedDate   DateTime?
-  bagSizeGrams Int?
-  status       BagStatus @default(UNOPENED)
-  isAvailable  Boolean   @default(true)
-  notes        String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  beanId          String
+  bean            Bean      @relation(fields: [beanId], references: [id], onDelete: Cascade)
+  roastDate       DateTime
+  openedDate      DateTime?
+  bagSizeGrams    Int?
+  status          BagStatus @default(UNOPENED)
+  isAvailable     Boolean   @default(true)
+  tubePosition    String?   // LEFT, MIDDLE, or RIGHT - position on the tube for open bags
+  notes           String?
+  frozenAt        DateTime? // When the bag was frozen (null if not currently frozen)
+  totalFrozenDays Int       @default(0) // Accumulated frozen days from past freeze/thaw cycles
+  isFrozenBag     Boolean   @default(false) // True for bags created as frozen splits (excluded from purchase stats)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   brewLogs   BrewLog[]
 }
