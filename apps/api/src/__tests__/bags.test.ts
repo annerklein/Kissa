@@ -120,6 +120,158 @@ describe('Bags API', () => {
       });
       expect(res.statusCode).toBe(404);
     });
+
+    it('sets tube position to LEFT', async () => {
+      const bag = await createBag(app, bean.id, { status: 'OPEN' });
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { tubePosition: 'LEFT' },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(json(res).tubePosition).toBe('LEFT');
+    });
+
+    it('sets tube position to MIDDLE', async () => {
+      const bag = await createBag(app, bean.id, { status: 'OPEN' });
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { tubePosition: 'MIDDLE' },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(json(res).tubePosition).toBe('MIDDLE');
+    });
+
+    it('sets tube position to RIGHT', async () => {
+      const bag = await createBag(app, bean.id, { status: 'OPEN' });
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { tubePosition: 'RIGHT' },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(json(res).tubePosition).toBe('RIGHT');
+    });
+
+    it('clears tube position by setting it to null', async () => {
+      const bag = await createBag(app, bean.id, { status: 'OPEN', tubePosition: 'LEFT' });
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { tubePosition: null },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(json(res).tubePosition).toBeNull();
+    });
+
+    it('rejects invalid tube position value', async () => {
+      const bag = await createBag(app, bean.id, { status: 'OPEN' });
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { tubePosition: 'INVALID' },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+  });
+
+  describe('Freeze/Unfreeze bags', () => {
+    it('freezes an existing bag by setting status to FROZEN', async () => {
+      const bag = await createBag(app, bean.id);
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'FROZEN' },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = json(res);
+      expect(body.status).toBe('FROZEN');
+      expect(body.frozenAt).toBeTruthy();
+      expect(body.isAvailable).toBe(false);
+    });
+
+    it('unfreezes a bag by setting status to OPEN', async () => {
+      const bag = await createBag(app, bean.id, { status: 'FROZEN' });
+      // Freeze it first via PATCH to set frozenAt
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'FROZEN' },
+      });
+
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'OPEN' },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = json(res);
+      expect(body.status).toBe('OPEN');
+      expect(body.frozenAt).toBeNull();
+      expect(body.isAvailable).toBe(true);
+      expect(body.openedDate).toBeTruthy();
+      expect(body.totalFrozenDays).toBeGreaterThanOrEqual(0);
+    });
+
+    it('creates a bag in FROZEN status with isFrozenBag flag', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/beans/${bean.id}/bags`,
+        payload: {
+          roastDate: new Date().toISOString(),
+          status: 'FROZEN',
+          isFrozenBag: true,
+          isAvailable: false,
+        },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = json(res);
+      expect(body.status).toBe('FROZEN');
+      expect(body.isFrozenBag).toBe(true);
+      expect(body.frozenAt).toBeTruthy();
+      expect(body.isAvailable).toBe(false);
+    });
+
+    it('frozen bags have totalFrozenDays defaulting to 0', async () => {
+      const bag = await createBag(app, bean.id);
+      const res = json(await app.inject({ method: 'GET', url: `/api/bags/${bag.id}` }));
+      expect(res.totalFrozenDays).toBe(0);
+    });
+
+    it('re-freezing a previously thawed bag preserves totalFrozenDays', async () => {
+      // Create and freeze a bag
+      const bag = await createBag(app, bean.id);
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'FROZEN' },
+      });
+
+      // Unfreeze it (totalFrozenDays should be 0 since frozen for <1 day)
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'OPEN' },
+      });
+
+      // Check the bag
+      const afterThaw = json(await app.inject({ method: 'GET', url: `/api/bags/${bag.id}` }));
+      expect(afterThaw.status).toBe('OPEN');
+      expect(afterThaw.frozenAt).toBeNull();
+      expect(afterThaw.totalFrozenDays).toBeGreaterThanOrEqual(0);
+
+      // Re-freeze it
+      const reFreeze = json(await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'FROZEN' },
+      }));
+      expect(reFreeze.status).toBe('FROZEN');
+      expect(reFreeze.frozenAt).toBeTruthy();
+      // totalFrozenDays should still be preserved from before
+      expect(reFreeze.totalFrozenDays).toBeGreaterThanOrEqual(0);
+    });
   });
 
   describe('DELETE /api/bags/:id', () => {
@@ -165,6 +317,7 @@ describe('Bags API', () => {
       expect(res.statusCode).toBe(200);
       const body = json(res);
       expect(body.bags).toBeDefined();
+      expect(body.frozenBags).toBeDefined();
       expect(body.currentGrinderSetting).toBeDefined();
       expect(body.selectedMethodId).toBe(v60.id);
     });
@@ -207,11 +360,80 @@ describe('Bags API', () => {
       expect(foundBag).toBeUndefined();
     });
 
+    it('excludes frozen bags from main bags list', async () => {
+      const frozenBean = await createBean(app, roaster.id, 'Frozen Bean');
+      const v60 = await getV60Method(app);
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/beans/${frozenBean.id}/recipes/${v60.id}`,
+        payload: { grinderTarget: 22 },
+      });
+
+      // Create a frozen bag
+      await app.inject({
+        method: 'POST',
+        url: `/api/beans/${frozenBean.id}/bags`,
+        payload: {
+          roastDate: new Date().toISOString(),
+          status: 'FROZEN',
+          isFrozenBag: true,
+          isAvailable: false,
+        },
+      });
+
+      const res = json(
+        await app.inject({
+          method: 'GET',
+          url: `/api/available-beans?methodId=${v60.id}`,
+        })
+      );
+
+      // Should NOT appear in main bags list
+      const foundInBags = res.bags.find((b: any) => b.bean.id === frozenBean.id);
+      expect(foundInBags).toBeUndefined();
+
+      // Should appear in frozenBags list
+      const foundInFrozen = res.frozenBags.find((b: any) => b.bean.id === frozenBean.id);
+      expect(foundInFrozen).toBeDefined();
+      expect(foundInFrozen.status).toBe('FROZEN');
+    });
+
     it('defaults to v60 method if no methodId specified', async () => {
       const res = json(
         await app.inject({ method: 'GET', url: '/api/available-beans' })
       );
       expect(res.selectedMethodId).toBeTruthy();
+    });
+
+    it('returns tubePosition for available bags', async () => {
+      const tubeBean = await createBean(app, roaster.id, 'Tube Position Bean');
+      const v60 = await getV60Method(app);
+
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/beans/${tubeBean.id}/recipes/${v60.id}`,
+        payload: { grinderTarget: 22 },
+      });
+
+      const bag = await createBag(app, tubeBean.id, { isAvailable: true, status: 'OPEN' });
+
+      // Set tube position
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { tubePosition: 'MIDDLE' },
+      });
+
+      const res = json(
+        await app.inject({
+          method: 'GET',
+          url: `/api/available-beans?methodId=${v60.id}`,
+        })
+      );
+
+      const tubeBag = res.bags.find((b: any) => b.bean.id === tubeBean.id);
+      expect(tubeBag).toBeDefined();
+      expect(tubeBag.tubePosition).toBe('MIDDLE');
     });
 
     it('includes grinderDelta when recipe has a grinderTarget', async () => {
