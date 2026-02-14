@@ -1,0 +1,107 @@
+---
+description: Core agent workflow for the Kissa coffee tracking project. Defines the mandatory task lifecycle, definition of done, and operational rules every agent must follow.
+alwaysApply: true
+---
+
+# Kissa Agent Workflow
+
+Kissa is a self-hosted coffee tracking app (Fastify API + Next.js Web + SQLite) deployed to a Raspberry Pi. Single user, no auth. Full project documentation is in `README.md` — read it before any task.
+
+## Task Lifecycle (MANDATORY ORDER)
+
+Every task MUST follow these steps in order. Do NOT skip any step. Do NOT declare a task finished until ALL steps are complete.
+
+### Step 1: Daily Backup
+
+Before starting ANY work, ensure today's database backup exists:
+
+```bash
+./scripts/backup.sh
+```
+
+This checks `backups/kissa-backup-YYYY-MM-DD.db` and downloads from production if missing. Run with `required_permissions: ["all"]` (needs network + SSH).
+
+### Step 2: Implement the Change
+
+- Read `README.md` for project structure, API reference, DB schema, and conventions
+- Write code following patterns in the file-specific rules (`kissa-api-routes`, `kissa-web-pages`, `kissa-prisma`)
+- If adding/modifying API endpoints, update the `README.md` API Endpoints Reference section
+- If changing files or directory structure, update the `README.md` Monorepo Structure section
+- If changing DB schema, update the `README.md` Database Schema section
+
+### Step 3: Update README.md
+
+The README is the single source of truth. Every code change MUST have a corresponding README update. See the "What to Update" table in `README.md` under the Agent Instructions section.
+
+### Step 4: Run Tests
+
+```bash
+./scripts/run-tests.sh
+```
+
+All 145+ tests must pass. If your change needs new tests, add them to `apps/api/src/__tests__/`. See the `kissa-api-routes` rule for test conventions.
+
+### Step 5: Deploy to Production
+
+```bash
+# API-only changes:
+./deploy.sh --api-only --clean
+
+# Web-only changes:
+./deploy.sh --web-only --clean
+
+# Full-stack changes (API + Web):
+./deploy.sh --clean
+```
+
+Run with `required_permissions: ["all"]`. Deploy takes ~2 minutes. The script builds ARM64 Docker images locally, transfers via SSH, and restarts containers.
+
+### Step 6: Verify Deployment
+
+```bash
+./scripts/verify-deploy.sh
+```
+
+Run with `required_permissions: ["full_network"]`. Also manually test the new feature against the production API using `command curl` (the `command` prefix bypasses shell aliases on this machine — always use it).
+
+### Step 7: Commit
+
+Use conventional commit prefixes: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `schema:`, `perf:`
+
+Break work into logical atomic commits. Typical sequence:
+1. Schema/migration → 2. API routes → 3. Shared packages → 4. Web UI → 5. Tests → 6. README
+
+Never `git add .` blindly. Always `git status` + `git diff` first. Never commit `*.db`, `node_modules/`, `dist/`, `.next/`, `backups/`.
+
+## Definition of Done
+
+A task is ONLY complete when ALL are true:
+- [ ] Code changes implemented
+- [ ] README.md updated
+- [ ] Tests written and full suite passes (`./scripts/run-tests.sh`)
+- [ ] Deployed to RPi (`./deploy.sh`)
+- [ ] Deployment verified (`./scripts/verify-deploy.sh` + manual feature test)
+- [ ] **ALL changes committed** — every modified, added, or deleted file must be committed with proper conventional commit messages. Run `git status` to confirm a clean working tree. No uncommitted work may be left behind. Break into logical atomic commits (schema → API → shared → web → tests → docs).
+
+**Do NOT tell the user you are "done" until every box is checked. A clean `git status` (no modified/untracked project files) is the final gate.**
+
+## Production Environment
+
+| Service | URL |
+|---------|-----|
+| Web App | `http://<your-rpi-host>:3000` |
+| API | `http://<your-rpi-host>:3001` |
+| Health | `http://<your-rpi-host>:3001/health` |
+| Backup | `http://<your-rpi-host>:3001/internal/backup/db` |
+| SSH | `$RPI_USER@$RPI_HOST` (password in .env) |
+
+## Critical Gotchas
+
+1. **Always use `command curl`** — this machine has shell aliases that break regular `curl`
+2. **Deploy script needs `required_permissions: ["all"]`** — it uses SSH, Docker, and network
+3. **Two seed files exist** — `seed.ts` (dev, TypeScript) and `seed.mjs` (production, JS). Keep them in sync
+4. **JSON-in-SQLite** — many DB fields store JSON as strings. Parse on read, stringify on write in route handlers
+5. **Brew creation side effect** — `POST /api/brews` auto-updates grinder state to match `grindSize`
+6. **Singleton pattern** — Settings and GrinderState use `id: 'default'`. Route handlers auto-create if missing
+7. **No auth** — zero authentication. Single user on local network
+8. **`pnpm@9.15.0`** — specified in root `package.json`. Different versions cause lockfile conflicts

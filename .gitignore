@@ -20,8 +20,9 @@ dist/
 .DS_Store
 Thumbs.db
 
-# IDE
-.cursor/
+# IDE (keep .cursor/rules/ for agent rules)
+.cursor/*
+!.cursor/rules/
 
 # Misc
 *.plan.md

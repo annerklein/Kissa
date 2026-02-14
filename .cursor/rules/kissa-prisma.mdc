@@ -1,0 +1,52 @@
+---
+description: Database schema and migration patterns for Kissa's Prisma/SQLite setup.
+globs: apps/api/prisma/**
+alwaysApply: false
+---
+
+# Database & Migration Patterns
+
+## Schema Location
+
+`apps/api/prisma/schema.prisma` — SQLite via Prisma ORM.
+
+## Key Conventions
+
+- **IDs:** UUIDs via `@default(uuid())`
+- **Timestamps:** `@default(now())` for createdAt, `@updatedAt` for updatedAt
+- **Singletons:** Settings and GrinderState use `id: 'default'`
+- **Enums:** defined in `@kissa/shared/types/enums.ts` AND in schema.prisma (keep in sync)
+- **JSON fields:** stored as `String` in schema, parsed/serialized in route handlers (not DB-level validation)
+
+## Entity Relationships
+
+```
+Roaster ──1:N──> Bean ──1:N──> Bag ──1:N──> BrewLog
+                   │                           │
+                   └──1:N──> BeanMethodRecipe   │
+                                  │             │
+                             Method ────────────┘
+```
+
+## Creating a Migration
+
+```bash
+# 1. Edit schema.prisma
+# 2. Create migration
+pnpm --filter @kissa/api db:migrate
+
+# 3. Update README.md Migrations section with the new migration
+# 4. If new enum values: update packages/shared/src/types/enums.ts
+# 5. If new Zod schema needed: update packages/shared/src/types/schemas.ts
+```
+
+## Two Seed Files (KEEP IN SYNC)
+
+- `prisma/seed.ts` — TypeScript, used in development (`tsx`)
+- `prisma/seed.mjs` — JavaScript, used in production Docker (no `tsx` available)
+
+Both create: default Settings, default GrinderState, 4 brew methods. If you change one, change the other.
+
+## Production Migrations
+
+Applied automatically on container startup via `docker/api-start.sh` → `prisma migrate deploy`. No manual steps needed — just deploy and the migration runs.

@@ -1,0 +1,63 @@
+---
+description: Web frontend development patterns for Kissa's Next.js app.
+globs: apps/web/**/*.tsx
+alwaysApply: false
+---
+
+# Web Page Patterns
+
+## Page Structure
+
+Pages are client components using React Query for data fetching:
+
+```typescript
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
+import { Logo } from '../../components/Logo';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:3001` : 'http://localhost:3001');
+
+async function fetchData() {
+  const res = await fetch(`${API_URL}/api/endpoint`);
+  if (!res.ok) throw new Error('Failed to fetch');
+  return res.json();
+}
+```
+
+- Pages are in `app/` (not `src/app/`)
+- Components in `components/`, utilities in `lib/`
+- All pages are `'use client'` — no server components
+- Every page uses the same `API_URL` pattern above
+
+## Styling
+
+- Tailwind CSS with custom coffee palette: `coffee-50` through `coffee-900`
+- Accent colors: `accent-warm`, `accent-cream`, `accent-espresso`
+- Animations: `animate-fade-in`, `animate-slide-up`, `animate-scale-in`, `animate-pulse-soft`
+- Fonts: `font-display` (Fraunces serif) for headings, default (Bricolage Grotesque) for body
+- Cards: `className="card"` (pre-styled in globals.css)
+- Buttons: `className="btn-primary"` or `className="btn-secondary"`
+- Gradient text: `className="text-gradient"`
+
+## Common Patterns
+
+- **Loading state:** centered `<Logo size="lg" animate />` with pulsing text
+- **Clickable cards:** `hover:scale-[1.02] active:scale-[0.98] transition-all duration-300`
+- **Staggered animations:** `style={{ animationDelay: \`${index * 0.05}s\` }}`
+- **Badges:** `className="badge-primary"` or `className="badge bg-{color}-100 text-{color}-700"`
+- **Country flags:** `<CountryFlag country={code} size="sm" showName={true} />`
+- **Confirmation dialogs:** `<ConfirmDialog>` component with `variant="danger"` or `variant="warning"`
+
+## State Management
+
+- **Server state:** TanStack React Query (`useQuery`, `useMutation`, `useQueryClient`)
+- **Client state:** Zustand store in `lib/store.ts` (grinder, settings, method)
+- **Invalidation:** always `queryClient.invalidateQueries({ queryKey: ['...'] })` after mutations
+
+## Naming
+
+- Components: PascalCase (`GrinderCard.tsx`)
+- Hooks: camelCase with `use` prefix
+- Pages: `page.tsx` in app router directories
