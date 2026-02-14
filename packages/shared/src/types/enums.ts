@@ -14,9 +14,18 @@ export const BagStatus = {
   UNOPENED: 'UNOPENED',
   OPEN: 'OPEN',
   FINISHED: 'FINISHED',
+  FROZEN: 'FROZEN',
 } as const;
 
 export type BagStatus = (typeof BagStatus)[keyof typeof BagStatus];
+
+export const TubePosition = {
+  LEFT: 'LEFT',
+  MIDDLE: 'MIDDLE',
+  RIGHT: 'RIGHT',
+} as const;
+
+export type TubePosition = (typeof TubePosition)[keyof typeof TubePosition];
 
 export const DialStatus = {
   DIALING_IN: 'DIALING_IN',

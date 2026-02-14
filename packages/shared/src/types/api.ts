@@ -37,6 +37,7 @@ export interface AvailableBag extends Bag {
 
 export interface AvailableBeansResponse {
   bags: AvailableBag[];
+  frozenBags: AvailableBag[];
   currentGrinderSetting: number;
   selectedMethodId: string;
 }
