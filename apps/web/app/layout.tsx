@@ -19,8 +19,11 @@ export const metadata: Metadata = {
   title: 'Kissa',
   description: 'Make it effortless to brew excellent coffee daily',
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
+    icon: [
+      { url: '/icon.png', sizes: '512x512', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: '/apple-icon.png',
   },
 };
 

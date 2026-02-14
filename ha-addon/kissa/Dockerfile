@@ -9,7 +9,8 @@ RUN apk add --no-cache \
     nodejs \
     npm \
     curl \
-    sqlite
+    sqlite \
+    openssl
 
 # Enable corepack for pnpm
 RUN corepack enable pnpm

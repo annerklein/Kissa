@@ -19,7 +19,7 @@
   "dependencies": {
     "@fastify/cors": "^10.0.0",
     "@kissa/shared": "workspace:*",
-    "@prisma/client": "^6.2.0",
+    "@prisma/client": "~6.19.0",
     "fastify": "^5.2.0",
     "zod": "^3.24.0"
   },
@@ -28,7 +28,7 @@
     "@types/supertest": "^6.0.3",
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.18.0",
-    "prisma": "^6.2.0",
+    "prisma": "~6.19.0",
     "supertest": "^7.2.2",
     "tsc-alias": "^1.8.0",
     "tsx": "^4.19.0",

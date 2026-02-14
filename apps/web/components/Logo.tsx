@@ -24,7 +24,7 @@ export function Logo({ size = 'md', animate = false }: LogoProps) {
         style={{ width: image, height: image }}
       >
         <Image
-          src="/logo.png"
+          src="/icon.png"
           alt="Kissa Logo"
           fill
           className="object-contain"

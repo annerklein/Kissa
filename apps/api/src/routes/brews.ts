@@ -87,8 +87,10 @@ export async function brewsRoutes(server: FastifyInstance) {
     let water = undefined;
     
     if (scalingRules.scalesWater) {
-      if (!ratio && recipe.water && recipe.dose) {
-        ratio = recipe.water / recipe.dose;
+      // If the recipe overrides explicitly specify a water amount, derive ratio from water/dose.
+      // This takes priority over the method's default ratio since the user set an exact water value.
+      if (recipeOverrides.water && recipe.dose) {
+        ratio = recipeOverrides.water / recipe.dose;
       }
       ratio = ratio || 16;
       water = dose * ratio;
