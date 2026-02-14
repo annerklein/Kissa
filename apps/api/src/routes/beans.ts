@@ -161,12 +161,21 @@ export async function beansRoutes(server: FastifyInstance) {
       });
     }
 
+    // Build bag data - handle frozen bag creation
+    const bagData: Record<string, any> = {
+      beanId: id,
+      ...body.data,
+    };
+
+    // If creating a frozen bag, set frozenAt automatically
+    if (bagData.status === 'FROZEN') {
+      bagData.frozenAt = bagData.frozenAt || new Date();
+      bagData.isAvailable = false;
+    }
+
     // Create the bag - recipes are now on the bean, no inheritance needed per bag
     const bag = await prisma.bag.create({
-      data: {
-        beanId: id,
-        ...body.data,
-      },
+      data: bagData as any,
     });
 
     return bag;

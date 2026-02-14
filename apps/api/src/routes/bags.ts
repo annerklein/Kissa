@@ -39,9 +39,9 @@ export async function bagsRoutes(server: FastifyInstance) {
       selectedMethodId = defaultMethod?.id;
     }
 
-    // Get available bags
+    // Get available bags (non-frozen)
     const bags = await prisma.bag.findMany({
-      where: { isAvailable: true },
+      where: { isAvailable: true, status: { not: 'FROZEN' } },
       include: {
         bean: {
           include: { 
@@ -57,7 +57,25 @@ export async function bagsRoutes(server: FastifyInstance) {
       orderBy: { roastDate: 'desc' },
     });
 
-    // Filter and transform - only include bags that have a recipe for the selected method on the bean
+    // Get frozen bags separately
+    const frozenBagsRaw = await prisma.bag.findMany({
+      where: { status: 'FROZEN' },
+      include: {
+        bean: {
+          include: { 
+            roaster: true,
+            recipes: true
+          },
+        },
+        brewLogs: {
+          orderBy: { brewedAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { roastDate: 'desc' },
+    });
+
+    // Filter and transform available bags
     const bagsWithDelta = bags
       .filter((bag) => {
         const hasRecipe = bag.bean.recipes.some((r) => r.methodId === selectedMethodId);
@@ -84,8 +102,21 @@ export async function bagsRoutes(server: FastifyInstance) {
         };
       });
 
+    // Transform frozen bags (no recipe filter — show all frozen bags)
+    const frozenBags = frozenBagsRaw.map((bag) => {
+      const lastBrew = bag.brewLogs[0];
+      return {
+        ...bag,
+        lastBrew: lastBrew
+          ? { brewedAt: lastBrew.brewedAt, computedScore: lastBrew.computedScore }
+          : undefined,
+        grinderDelta: undefined,
+      };
+    });
+
     return {
       bags: bagsWithDelta,
+      frozenBags,
       currentGrinderSetting: grinder.currentSetting,
       selectedMethodId,
     };
@@ -132,10 +163,47 @@ export async function bagsRoutes(server: FastifyInstance) {
       });
     }
 
+    // Get current bag to check status transitions
+    const currentBag = await prisma.bag.findUnique({ where: { id } });
+    if (!currentBag) {
+      return reply.status(404).send({
+        error: 'NotFound',
+        message: 'Bag not found',
+      });
+    }
+
+    const updateData: Record<string, any> = { ...body.data };
+
+    // Handle freeze transition: any status -> FROZEN
+    if (body.data.status === 'FROZEN' && currentBag.status !== 'FROZEN') {
+      updateData.frozenAt = new Date();
+      updateData.isAvailable = false;
+    }
+
+    // Handle unfreeze transition: FROZEN -> OPEN (thaw)
+    if (body.data.status && body.data.status !== 'FROZEN' && currentBag.status === 'FROZEN') {
+      // Calculate days spent in this freeze cycle
+      if (currentBag.frozenAt) {
+        const now = new Date();
+        const frozenDate = new Date(currentBag.frozenAt);
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const frozenDay = new Date(frozenDate.getFullYear(), frozenDate.getMonth(), frozenDate.getDate());
+        const frozenDays = Math.floor((today.getTime() - frozenDay.getTime()) / (1000 * 60 * 60 * 24));
+        updateData.totalFrozenDays = currentBag.totalFrozenDays + frozenDays;
+      }
+      updateData.frozenAt = null;
+      // When unfreezing, default to OPEN and available
+      if (body.data.status === 'OPEN' || !body.data.status) {
+        updateData.status = 'OPEN';
+        updateData.isAvailable = true;
+        updateData.openedDate = new Date();
+      }
+    }
+
     try {
       const bag = await prisma.bag.update({
         where: { id },
-        data: body.data,
+        data: updateData,
         include: {
           bean: {
             include: { roaster: true },
