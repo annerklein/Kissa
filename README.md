@@ -33,7 +33,7 @@ Kissa is a self-hosted coffee tracking application that helps you brew excellent
 - [Database Backup](#database-backup)
 - [Conventions and Patterns](#conventions-and-patterns)
 - [Known Quirks and Gotchas](#known-quirks-and-gotchas)
-- [Agent Instructions (MANDATORY)](#agent-instructions-mandatory)
+- [Agent Instructions](#agent-instructions)
 
 ---
 
@@ -121,7 +121,8 @@ kissa/
 │   │   │   ├── rate/
 │   │   │   │   └── page.tsx        # Post-brew rating screen
 │   │   │   ├── roasters/
-│   │   │   │   └── page.tsx        # Roaster management
+│   │   │   │   ├── page.tsx        # Roaster list (clickable → roaster detail)
+│   │   │   │   └── [id]/page.tsx   # Roaster detail (roaster's beans, clickable → bean detail)
 │   │   │   ├── analytics/
 │   │   │   │   └── page.tsx        # World map + analytics
 │   │   │   └── onboarding/
@@ -137,6 +138,8 @@ kissa/
 │   │   │   ├── AvailableBeanCard.tsx
 │   │   │   ├── BagCard.tsx
 │   │   │   ├── AddBagModal.tsx
+│   │   │   ├── TubePositionIndicator.tsx  # Tube position display & picker components
+│   │   │   ├── FrozenBagCard.tsx          # Compact frozen bag card with quick unfreeze button
 │   │   │   ├── BeanRankingList.tsx
 │   │   │   ├── ConfirmDialog.tsx
 │   │   │   ├── CountryFlag.tsx
@@ -207,6 +210,17 @@ kissa/
 │       ├── build.yaml              # Per-architecture base images
 │       ├── DOCS.md
 │       └── CHANGELOG.md
+│
+├── scripts/                         # Agent automation scripts
+│   ├── backup.sh                    # Daily database backup (run at start of every session)
+│   ├── run-tests.sh                 # Run full API test suite
+│   └── verify-deploy.sh            # Post-deployment health & feature verification
+│
+├── .cursor/rules/                   # Cursor agent rules (auto-applied)
+│   ├── kissa-agent.mdc             # Core workflow: task lifecycle, definition of done
+│   ├── kissa-api-routes.mdc        # API route patterns (applied when editing apps/api/)
+│   ├── kissa-web-pages.mdc         # Web page patterns (applied when editing apps/web/)
+│   └── kissa-prisma.mdc            # Database/migration patterns (applied when editing prisma/)
 │
 ├── deploy.sh                       # One-click deploy to RPi via SSH
 ├── deploy-rpi.sh                   # Alternative rsync-based deploy
@@ -280,8 +294,9 @@ A Next.js 15 app using the App Router. No API routes -- it calls the external Fa
 4. **Beans** (`/beans`) - Browse all beans
 5. **Bean Detail** (`/beans/[id]`) - Edit bean, manage bags, view recipes per method, brew history
 6. **New Bean** (`/beans/new`) - Add a new bean
-7. **Roasters** (`/roasters`) - Manage roasters
-8. **Analytics** (`/analytics`) - World map of coffee origins with country drill-down
+7. **Roasters** (`/roasters`) - Browse roasters, tap a roaster to see its beans
+8. **Roaster Detail** (`/roasters/[id]`) - View roaster info and all its beans, tap a bean to go to its detail/edit page
+9. **Analytics** (`/analytics`) - World map of coffee origins with country drill-down
 
 **Environment variables:**
 | Variable | Default | Description |
@@ -308,10 +323,10 @@ Shared code consumed by API, Web, and Mobile. Published as ESM with TypeScript d
 | Path | Contents |
 |------|----------|
 | `@kissa/shared` | Everything (re-export barrel) |
-| `@kissa/shared/types` | Zod schemas (`SettingsUpdateSchema`, `GrinderApplySchema`, `BeanCreateSchema`, `BagCreateSchema`, `BagUpdateSchema`, `BrewLogCreateSchema`, `BrewLogRatingSchema`, `OnboardingDataSchema`, `RoasterCreateSchema`), API response types, enums (`RoastLevel`, `BagStatus`) |
+| `@kissa/shared/types` | Zod schemas (`SettingsUpdateSchema`, `GrinderApplySchema`, `BeanCreateSchema`, `BagCreateSchema`, `BagUpdateSchema`, `BrewLogCreateSchema`, `BrewLogRatingSchema`, `OnboardingDataSchema`, `RoasterCreateSchema`, `TubePositionSchema`), API response types, enums (`RoastLevel`, `BagStatus` incl. `FROZEN`, `TubePosition`) |
 | `@kissa/shared/constants` | Tasting note categories, method constants |
 | `@kissa/shared/scoring` | `computeSmartScore(sliders)`, `computeBestScore(scores)`, `interpretBalance(balance)`, `getExtractionAssessment(sliders)` |
-| `@kissa/shared/utils` | `computeGrinderDelta(current, target)`, date formatting helpers |
+| `@kissa/shared/utils` | `computeGrinderDelta(current, target)`, date formatting helpers, `computeEffectiveDaysOffRoast()`, `computeTotalFrozenDays()` |
 
 ### `@kissa/api-client`
 
@@ -354,7 +369,7 @@ Roaster ──1:N──> Bean ──1:N──> Bag ──1:N──> BrewLog
 | **GrinderState** | Current grinder position (singleton) | `grinderModel`, `currentSetting` (float) |
 | **Roaster** | Coffee roaster/company | `name`, `country`, `website`, `logoUrl`, `notes` |
 | **Bean** | Coffee product (stable, re-buyable) | `name`, `roasterId` (FK), `originCountry`, `originRegion`, `varietal`, `process`, `roastLevel` (enum), `tastingNotesExpected` (JSON array) |
-| **Bag** | Purchase instance of a bean | `beanId` (FK), `roastDate`, `openedDate`, `bagSizeGrams`, `status` (UNOPENED/OPEN/FINISHED), `isAvailable` |
+| **Bag** | Purchase instance of a bean | `beanId` (FK), `roastDate`, `openedDate`, `bagSizeGrams`, `status` (UNOPENED/OPEN/FINISHED/FROZEN), `isAvailable`, `tubePosition` (LEFT/MIDDLE/RIGHT, nullable), `frozenAt` (nullable), `totalFrozenDays` (default 0), `isFrozenBag` (default false) |
 | **Method** | Brewing method | `name` (unique: v60/moka/espresso/french_press), `displayName`, `scalingRules` (JSON), `defaultParams` (JSON), `steps` (JSON array) |
 | **BeanMethodRecipe** | Per-bean grind target for a method | `beanId` + `methodId` (unique pair), `grinderTarget` (float), `recipeOverrides` (JSON) |
 | **BrewLog** | Record of an actual brew | `bagId` (FK), `methodId` (FK), `parameters` (JSON), `ratingSliders` (JSON), `drawdownTime`, `computedScore`, `tastingNotesActual` (JSON), `notes`, `suggestionShown` (JSON), `suggestionAccepted` |
@@ -374,10 +389,12 @@ Several fields store JSON as strings in SQLite. They are serialized with `JSON.s
 
 ### Migrations
 
-Migrations live in `apps/api/prisma/migrations/`. There are currently 2 migrations:
+Migrations live in `apps/api/prisma/migrations/`. There are currently 4 migrations:
 
 1. `20260124125519_add_roaster_logo` - Initial schema creation (all tables)
 2. `20260124142211_move_recipes_to_bean` - Migrated recipes from per-bag (`BagMethodTarget`) to per-bean (`BeanMethodRecipe`)
+3. `20260214092432_add_tube_position_to_bag` - Added `tubePosition` (LEFT/MIDDLE/RIGHT) to `Bag` model for tracking physical tube placement
+4. `20260214140000_add_freeze_bag_support` - Added `FROZEN` status, `frozenAt`, `totalFrozenDays`, `isFrozenBag` to `Bag` model for freeze/thaw tracking
 
 Migrations are applied via `npx prisma migrate deploy` (production) or `pnpm db:migrate` (dev).
 
@@ -444,7 +461,7 @@ Base URL: `http://localhost:3001` (dev) / `http://<your-rpi-host>:3001` (product
 |--------|------|-------------|
 | GET | `/api/bags` | List all bags |
 | GET | `/api/bags/:id` | Get bag with bean, roaster, recipes, brew logs |
-| PATCH | `/api/bags/:id` | Update bag (status, availability) |
+| PATCH | `/api/bags/:id` | Update bag (status, availability, tubePosition) |
 | DELETE | `/api/bags/:id` | Delete bag |
 | GET | `/api/available-beans` | Get available bags with grinder deltas for selected method. Query: `?methodId=` |
 
@@ -492,6 +509,25 @@ Base URL: `http://localhost:3001` (dev) / `http://<your-rpi-host>:3001` (product
 ### Bean vs Bag
 
 A **Bean** is a coffee product (e.g., "Ethiopia Yirgacheffe" from a specific roaster). It's stable and re-purchasable. A **Bag** is a specific purchase instance of that bean with a roast date. You can have multiple bags of the same bean. Recipes (grinder targets) are stored at the **Bean** level, not the Bag level.
+
+### Tube Position
+
+Open bags can be assigned a **tube position**: **Left**, **Middle**, or **Right**. This corresponds to the physical placement of coffee containers on a tube/shelf in real life. It's a nullable attribute on the `Bag` model -- only meaningful for bags with status `OPEN`. The position is displayed as a compact visual indicator (three-slot bar) on both the `BagCard` and `AvailableBeanCard` components. Users can set/change/clear the position from the bean detail page when expanding an open bag.
+
+### Freeze Bag
+
+Bags can be **frozen** to pause the aging clock. This is designed for the common scenario of buying a bag, splitting it, and freezing part of it for later. The freeze feature has two entry points:
+
+1. **Freeze an existing bag** -- any UNOPENED or OPEN bag can be frozen from its detail card. The status changes to `FROZEN`, `frozenAt` is set to the current time, and the bag is removed from the rotation.
+2. **Create a new frozen bag** -- from the bean detail page's "Add Bag" modal, the user can toggle "Freeze" mode. This creates a bag with `status: FROZEN`, `isFrozenBag: true`. The `isFrozenBag` flag marks it as a frozen split that shouldn't count as a separate purchase in statistics.
+
+**Unfreezing (thawing):** When a bag is unfrozen, the frozen duration (days from `frozenAt` to now) is added to `totalFrozenDays`, `frozenAt` is cleared, status is set to `OPEN`, and the bag is added to the rotation (`isAvailable: true`).
+
+**Effective days off roast:** The formula is: `effective_days = (today - roastDate) - totalFrozenDays - currentFreezeDuration`. This is computed by `computeEffectiveDaysOffRoast()` in `@kissa/shared/utils`. The `formatRoastDate()` function also accepts an optional `frozenDaysOffset` parameter.
+
+**Multiple freeze/thaw cycles:** Supported. `totalFrozenDays` accumulates across cycles.
+
+**Home page display:** Frozen bags appear in a collapsible "Frozen" section below the rotation, with a compact card showing bean name, frozen duration, and a quick "Thaw" button.
 
 ### Grinder Delta
 
@@ -896,209 +932,66 @@ Then restart the dev server.
 
 ---
 
-## Agent Instructions (MANDATORY)
+## Agent Instructions
 
-**These instructions are non-negotiable for any AI agent working on this codebase.**
+**Agent workflow rules live in `.cursor/rules/` and are automatically applied by Cursor.** The main rule (`kissa-agent.mdc`, always-apply) defines the complete task lifecycle. File-specific rules apply when editing relevant areas.
 
-### 1. Keep This README Up to Date
+### Rule Files
 
-**Every time you make a change to the codebase, you MUST update this README to reflect it.** This includes but is not limited to:
+| File | Scope | Purpose |
+|------|-------|---------|
+| `.cursor/rules/kissa-agent.mdc` | Always applies | Task lifecycle, definition of done, deployment workflow, gotchas |
+| `.cursor/rules/kissa-api-routes.mdc` | `apps/api/src/**` | Route patterns, validation, testing conventions |
+| `.cursor/rules/kissa-web-pages.mdc` | `apps/web/**` | Page patterns, styling, state management |
+| `.cursor/rules/kissa-prisma.mdc` | `**/prisma/**` | Schema conventions, migrations, seed files |
 
-- Adding, removing, or renaming files -- update the [Monorepo Structure](#monorepo-structure) tree
-- Adding or changing API endpoints -- update the [API Endpoints Reference](#api-endpoints-reference)
-- Modifying the database schema -- update the [Database Schema](#database-schema) section
-- Adding new environment variables -- update the relevant app's environment variables table
-- Changing deployment configuration -- update the [Deployment](#deployment) section
-- Adding new packages or dependencies -- update the [Tech Stack](#tech-stack) and [Packages](#packages) sections
-- Discovering new quirks -- add to [Known Quirks and Gotchas](#known-quirks-and-gotchas)
-- Adding new conventions -- update [Conventions and Patterns](#conventions-and-patterns)
+### Automation Scripts
 
-**The README is the single source of truth for understanding this project. If it's out of date, the next agent (or human) will make wrong assumptions. Treat README updates as part of the definition of done for any task.**
+| Script | When to Run | What It Does |
+|--------|-------------|--------------|
+| `./scripts/backup.sh` | Start of every work session | Downloads today's DB backup from production |
+| `./scripts/run-tests.sh` | After every code change | Runs all 145+ API integration tests |
+| `./scripts/verify-deploy.sh` | After every deployment | Health checks API, methods, endpoints, web app |
+| `./deploy.sh --clean` | After tests pass | Builds, transfers, and starts containers on RPi |
 
-### 2. Test Every Feature
+### What to Update in This README
 
-**Every feature you add or modify MUST be tested and verified against the existing test suite.** Follow this workflow:
+Every code change MUST have a corresponding README update:
 
-#### a) Write Tests for Your Change
+| Change Type | Section to Update |
+|-------------|-------------------|
+| Add/remove/rename files | [Monorepo Structure](#monorepo-structure) |
+| Add/change API endpoints | [API Endpoints Reference](#api-endpoints-reference) |
+| Modify database schema | [Database Schema](#database-schema) |
+| Add environment variables | Relevant app's env table in [Apps](#apps) |
+| Change deployment config | [Deployment](#deployment) |
+| Add packages/dependencies | [Tech Stack](#tech-stack) and [Packages](#packages) |
+| Discover new quirks | [Known Quirks and Gotchas](#known-quirks-and-gotchas) |
+| Add conventions | [Conventions and Patterns](#conventions-and-patterns) |
 
-Every new feature or bug fix must include corresponding tests. Tests live in `apps/api/src/__tests__/` and are organized by domain:
+### Git Conventions
 
-| File | Covers |
-|------|--------|
-| `health.test.ts` | Health check endpoint |
-| `settings.test.ts` | Settings CRUD |
-| `grinder.test.ts` | Grinder state and apply |
-| `roasters.test.ts` | Roasters CRUD |
-| `beans.test.ts` | Beans CRUD, bags, recipes |
-| `bags.test.ts` | Bags CRUD, available-beans |
-| `methods.test.ts` | Methods listing and lookup |
-| `brews.test.ts` | Brew logs, rating, suggestions |
-| `analytics.test.ts` | Map data, country/region drill-down |
-| `onboarding.test.ts` | Onboarding flow |
-| `recommendation.test.ts` | Suggestion engine logic |
-| `api.test.ts` | Cross-cutting integration (full brew workflow) |
-| `helpers.ts` | Shared test utilities (`getApp`, `createRoaster`, `createBean`, `createBag`, `getV60Method`, `getMokaMethod`, `createBrewSetup`, `json`) |
+Use conventional commit prefixes: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `schema:`, `perf:`
 
-**Test conventions:**
-- Tests use Vitest (`describe`, `it`, `expect`, `beforeAll`, `afterAll`)
-- All tests share a single Fastify app instance via `getApp()` from `helpers.ts` (no separate DB per test)
-- Use `app.inject()` to make requests (Fastify's built-in test helper, no HTTP server needed)
-- Use the helper functions (`createRoaster`, `createBean`, `createBag`, etc.) to set up test data
-- Parse responses with `json(response)` helper
-- Place new test file in the appropriate domain file, or create a new one if adding a new domain
-- Tests run sequentially (`sequence.concurrent: false` in `vitest.config.ts`), so test data persists across tests within a file
+- Break work into atomic commits (one concern per commit)
+- Typical sequence: schema → API routes → shared packages → web UI → tests → README
+- Always `git status` + `git diff` before committing
+- Never `git add .` blindly
+- Never commit `*.db`, `node_modules/`, `dist/`, `.next/`, `backups/`
+- Never force-push unless explicitly asked
 
-**What to test:**
-- Happy path (feature works as expected)
-- Validation errors (400 on bad input)
-- Not-found cases (404 on missing resources)
-- Edge cases specific to the feature
-- Side effects (e.g., brew creation updating grinder state)
+### Test Conventions
 
-#### b) Run the Full Test Suite
+Tests live in `apps/api/src/__tests__/` organized by domain. Use Vitest with `app.inject()`. Test helpers are in `helpers.ts`. Test happy paths, validation errors (400), not-found (404), edge cases, and side effects. Never `.skip` or `.todo` tests. See the `kissa-api-routes` rule for details.
 
-After making your changes and writing tests, **always run the full suite**:
+### Definition of Done
 
-```bash
-pnpm --filter @kissa/api test
-```
+A task is ONLY complete when ALL are true:
+1. Code changes implemented
+2. README updated
+3. Tests written and full suite passes (`./scripts/run-tests.sh`)
+4. Deployed to RPi (`./deploy.sh --clean`)
+5. Deployment verified (`./scripts/verify-deploy.sh` + manual feature test)
+6. Committed with proper git messages
 
-This runs `vitest run` which executes all `src/**/*.test.ts` files.
-
-#### c) Handle Test Failures
-
-If existing tests fail after your change, you must make a judgment call:
-
-1. **You changed existing behavior intentionally** (e.g., the user asked to change how scoring works) -- **Update the affected tests** to match the new expected behavior. The tests should reflect what the user wants, not what the code used to do.
-
-2. **Your change broke an unrelated feature** (e.g., you modified the beans route and now analytics tests fail) -- **Fix your code**, not the tests. The failing tests are correctly guarding existing functionality.
-
-**The rule of thumb:** Tests are a contract for what the app should do. If the user asked you to change that contract, update the tests. If you accidentally violated the contract, fix your code. The goal is that after your work is done, **all tests pass and the app does exactly what the user requested**.
-
-#### d) Never Skip or Disable Tests
-
-Do not use `.skip`, `.todo`, or comment out tests to make the suite pass. If a test is genuinely obsolete (the feature it tests was intentionally removed), delete it entirely -- don't leave it disabled.
-
-### 3. Daily Database Backup
-
-**Before starting any work session, ensure a local backup of the database exists for today.** The procedure:
-
-1. Check if a backup file for today already exists at `backups/kissa-backup-YYYY-MM-DD.db` (relative to the project root)
-2. If today's backup does NOT exist:
-   - Create the `backups/` directory if it doesn't exist
-   - Download a backup from the running API server (use `command curl` to bypass any shell aliases):
-     ```bash
-     mkdir -p backups
-     command curl -s -o backups/kissa-backup-$(date +%Y-%m-%d).db http://<your-rpi-host>:3001/internal/backup/db
-     ```
-   - If the production server isn't available, try the local dev server:
-     ```bash
-     command curl -s -o backups/kissa-backup-$(date +%Y-%m-%d).db http://localhost:3001/internal/backup/db
-     ```
-   - Fallback: copy the database directly from the Docker container via SSH:
-     ```bash
-     ssh $RPI_USER@$RPI_HOST 'sudo docker cp kissa-api:/app/data/kissa.db /tmp/kissa-backup.db'
-     ssh $RPI_USER@$RPI_HOST 'cat /tmp/kissa-backup.db' > backups/kissa-backup-$(date +%Y-%m-%d).db
-     ```
-   - Verify the downloaded file is a valid SQLite database (non-zero size)
-3. If today's backup already exists, skip this step
-
-**The `backups/` directory should be gitignored.** If it isn't, add it to `.gitignore`.
-
-This is a safety net. The database contains real user data (brew logs, ratings, bean configurations) that cannot be recreated. A daily backup ensures that even if a migration goes wrong or data is accidentally deleted, we can recover.
-
-### 4. Git Hygiene
-
-**Commit your work properly. Every logical change gets its own commit with a clear message.** Good git history is documentation.
-
-#### a) Commit Granularity
-
-Do NOT lump everything into a single giant commit. Break your work into logical, atomic commits. Each commit should represent one coherent change that could be reverted independently. Examples:
-
-| Good (separate commits) | Bad (single commit) |
-|------------------------|---------------------|
-| `feat: add DELETE /api/beans/:id/bags/:bagId endpoint` | `add bunch of stuff` |
-| `test: add integration tests for bag deletion` | |
-| `docs: update README with new bag deletion endpoint` | |
-
-Typical commit sequence for a new feature:
-1. Schema/migration changes (if any)
-2. API route implementation
-3. Shared package changes (types, schemas, utils)
-4. Web UI changes
-5. Tests for the new feature
-6. README update
-
-If a change is small and tightly coupled (e.g., a one-line bug fix and its test), a single commit is fine.
-
-#### b) Commit Message Format
-
-Use conventional commit prefixes:
-
-| Prefix | When to use |
-|--------|-------------|
-| `feat:` | New feature or endpoint |
-| `fix:` | Bug fix |
-| `refactor:` | Code restructuring with no behavior change |
-| `test:` | Adding or updating tests |
-| `docs:` | README or documentation updates |
-| `chore:` | Dependencies, config, build tooling |
-| `style:` | Formatting, linting (no logic change) |
-| `perf:` | Performance improvement |
-| `schema:` | Database schema or migration changes |
-
-Messages should be concise but descriptive. Say **what** changed and **why** when the why isn't obvious:
-
-```
-feat: add bag deletion with cascade to brew logs
-
-fix: prevent double grinder update when applying suggestion
-Previously, applying a suggestion would update the grinder state twice -
-once via the suggestion apply endpoint and once when creating the next brew.
-
-schema: add roaster logo field and migrate existing data
-
-docs: update README with backup endpoint and agent instructions
-```
-
-#### c) What to Commit and What NOT to Commit
-
-**Always commit:**
-- Source code changes (`apps/`, `packages/`)
-- Schema and migration files (`prisma/schema.prisma`, `prisma/migrations/`)
-- Configuration changes (`package.json`, `tsconfig.json`, `next.config.js`, `tailwind.config.js`, Docker files)
-- Test files
-- README and documentation updates
-- Seed files (`seed.ts`, `seed.mjs` -- keep in sync)
-
-**NEVER commit:**
-- `node_modules/` (gitignored)
-- `.next/` build cache
-- `dist/` compiled output
-- `*.db` database files
-- `backups/` directory
-- `.env` or credential files
-- Binary blobs or large generated files
-
-If you notice untracked files that should be gitignored (e.g., `.next/`, `dist/`, `*.db`), add them to `.gitignore` as a separate commit before proceeding.
-
-#### d) Stage and Review Before Committing
-
-Always review what you're about to commit:
-1. Run `git status` to see all changed files
-2. Run `git diff` to review the actual changes
-3. Stage only the files relevant to the current logical commit (`git add <specific files>`)
-4. Do NOT use `git add .` blindly -- it risks committing build artifacts, database files, or unrelated changes
-
-#### e) Commit Timing
-
-- Commit after each logical milestone, not at the very end of a session
-- If you've made schema changes, commit them before building on top of them
-- If you've written code and tests, you can commit them together or separately -- use judgment based on size
-- Always commit passing code. Do not commit broken state. If tests are failing, fix them first.
-
-#### f) Never Force Push or Rewrite Shared History
-
-- Do NOT use `git push --force` unless the user explicitly asks for it
-- Do NOT use `git rebase -i` or `git reset --hard` on commits that have been pushed
-- If you need to fix a mistake, create a new corrective commit rather than rewriting history
+**Do NOT tell the user "done" until every step is complete. Skipping deployment is never acceptable.**
