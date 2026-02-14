@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import Link from 'next/link';
 import { Logo } from '../../components/Logo';
 import { CountryFlag } from '../../components/CountryFlag';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -17,6 +18,7 @@ interface Roaster {
   logoUrl?: string | null;
   notes?: string | null;
   beans?: any[];
+  _count?: { beans: number };
 }
 
 async function fetchRoasters() {
@@ -131,51 +133,60 @@ export default function RoastersPage() {
           {roasters?.map((roaster: Roaster, index: number) => (
             <div
               key={roaster.id}
-              className="card animate-slide-up"
+              className="card animate-slide-up hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
               style={{ animationDelay: `${index * 0.05}s` }}
             >
               <div className="flex items-start gap-4">
-                {/* Logo */}
-                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-coffee-100 to-coffee-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                  {roaster.logoUrl ? (
-                    <img src={roaster.logoUrl} alt={roaster.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-2xl">☕</span>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-display font-bold text-lg text-coffee-900 truncate">
-                    {roaster.name}
-                  </h3>
-                  
-                  <div className="flex flex-wrap items-center gap-2 mt-1">
-                    {roaster.country && (
-                      <span className="badge-primary text-xs">
-                        <CountryFlag country={roaster.country} size="sm" showName={true} />
-                      </span>
-                    )}
-                    {roaster.website && (
-                      <a
-                        href={roaster.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="badge bg-blue-100 text-blue-700 text-xs hover:bg-blue-200 transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        🌐 Website
-                      </a>
+                {/* Clickable area: Logo + Info */}
+                <Link href={`/roasters/${roaster.id}`} className="flex items-start gap-4 flex-1 min-w-0">
+                  {/* Logo */}
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-coffee-100 to-coffee-200 flex items-center justify-center flex-shrink-0 overflow-hidden p-1.5">
+                    {roaster.logoUrl ? (
+                      <img src={roaster.logoUrl} alt={roaster.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-2xl">☕</span>
                     )}
                   </div>
 
-                  {roaster.notes && (
-                    <p className="text-sm text-coffee-500 mt-2 line-clamp-2">{roaster.notes}</p>
-                  )}
-                </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-display font-bold text-lg text-coffee-900 truncate">
+                      {roaster.name}
+                    </h3>
+                    
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      {roaster.country && (
+                        <span className="badge-primary text-xs">
+                          <CountryFlag country={roaster.country} size="sm" showName={true} />
+                        </span>
+                      )}
+                      {roaster._count && (
+                        <span className="badge bg-coffee-100 text-coffee-600 text-xs">
+                          {roaster._count.beans} bean{roaster._count.beans !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+
+                    {roaster.notes && (
+                      <p className="text-sm text-coffee-500 mt-2 line-clamp-2">{roaster.notes}</p>
+                    )}
+                  </div>
+                </Link>
 
                 {/* Actions */}
                 <div className="flex gap-2 flex-shrink-0">
+                  {roaster.website && (
+                    <a
+                      href={roaster.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Website"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      🌐
+                    </a>
+                  )}
                   <button
                     onClick={() => setEditingRoaster(roaster)}
                     className="p-2 text-coffee-500 hover:bg-coffee-100 rounded-lg transition-colors"
@@ -231,6 +242,36 @@ export default function RoastersPage() {
   );
 }
 
+/** Resize an image file to fit within maxSize x maxSize, returns a base64 data URL */
+function resizeImageToDataUrl(file: File, maxSize: number): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Use PNG for transparency support, with reasonable quality
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 interface RoasterModalProps {
   roaster: Roaster | null;
   onClose: () => void;
@@ -259,11 +300,7 @@ function RoasterModal({ roaster, onClose, onSave, isSaving }: RoasterModalProps)
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      resizeImageToDataUrl(file, 200).then(setLogoUrl);
     }
   };
 
@@ -279,9 +316,9 @@ function RoasterModal({ roaster, onClose, onSave, isSaving }: RoasterModalProps)
           <div>
             <label className="block text-sm text-coffee-500 mb-2">Logo</label>
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-coffee-100 to-coffee-200 flex items-center justify-center overflow-hidden">
+              <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-coffee-100 to-coffee-200 flex items-center justify-center overflow-hidden p-1.5">
                 {logoUrl ? (
-                  <img src={logoUrl} alt="Logo preview" className="w-full h-full object-cover" />
+                  <img src={logoUrl} alt="Logo preview" className="w-full h-full object-contain" />
                 ) : (
                   <span className="text-3xl">☕</span>
                 )}

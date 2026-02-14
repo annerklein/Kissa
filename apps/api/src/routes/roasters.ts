@@ -7,6 +7,11 @@ export async function roastersRoutes(server: FastifyInstance) {
   server.get('/roasters', async () => {
     return prisma.roaster.findMany({
       orderBy: { name: 'asc' },
+      include: {
+        _count: {
+          select: { beans: true },
+        },
+      },
     });
   });
 
