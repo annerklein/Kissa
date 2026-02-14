@@ -13,6 +13,7 @@ interface StatsData {
   totalBrews: number;
   avgScore: number | null;
   bestScore: number | null;
+  bestScoreBean: { beanId: string; beanName: string; roasterName: string } | null;
   uniqueBeans: number;
   uniqueRoasters: number;
   methodBreakdown: Array<{
@@ -115,7 +116,12 @@ export function BrewStats() {
           <div className="grid grid-cols-2 gap-3 animate-slide-up" style={{ animationDelay: '0.15s' }}>
             <SummaryCard label="Total Brews" value={stats.totalBrews.toString()} icon="☕" />
             <SummaryCard label="Avg Score" value={formatScore(stats.avgScore)} icon="⭐" />
-            <SummaryCard label="Best Score" value={formatScore(stats.bestScore)} icon="🏆" />
+            <SummaryCard
+              label="Best Score"
+              value={formatScore(stats.bestScore)}
+              icon="🏆"
+              subtitle={stats.bestScoreBean ? stats.bestScoreBean.beanName : undefined}
+            />
             <SummaryCard label="Beans Tried" value={stats.uniqueBeans.toString()} icon="🫘" />
           </div>
 
@@ -126,11 +132,11 @@ export function BrewStats() {
                 <span>📊</span>
                 Brew Activity
               </h3>
-              <div className="flex items-end gap-[2px] h-24 mt-2">
+              <div className="flex items-stretch gap-[2px] h-24 mt-2">
                 {stats.brewActivity.map((entry, i) => (
                   <div
                     key={i}
-                    className="flex-1 flex flex-col items-center group relative"
+                    className="flex-1 flex flex-col justify-end group relative"
                   >
                     <div
                       className="w-full rounded-t-sm bg-gradient-to-t from-coffee-700 to-coffee-500 transition-all duration-300 group-hover:from-coffee-800 group-hover:to-coffee-600 min-h-[2px]"
@@ -267,12 +273,15 @@ export function BrewStats() {
   );
 }
 
-function SummaryCard({ label, value, icon }: { label: string; value: string; icon: string }) {
+function SummaryCard({ label, value, icon, subtitle }: { label: string; value: string; icon: string; subtitle?: string }) {
   return (
     <div className="card-flat text-center">
       <p className="text-2xl mb-1">{icon}</p>
       <p className="text-2xl font-display font-bold text-coffee-800">{value}</p>
       <p className="text-xs text-coffee-500 mt-0.5">{label}</p>
+      {subtitle && (
+        <p className="text-[10px] text-coffee-400 mt-0.5 truncate px-1">{subtitle}</p>
+      )}
     </div>
   );
 }

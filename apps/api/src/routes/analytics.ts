@@ -178,6 +178,19 @@ export async function analyticsRoutes(server: FastifyInstance) {
       : null;
     const bestScore = scores.length > 0 ? Math.max(...scores) : null;
 
+    // Find the bean that achieved the best score
+    let bestScoreBean: { beanId: string; beanName: string; roasterName: string } | null = null;
+    if (bestScore !== null) {
+      const bestBrew = brews.find((b) => b.computedScore === bestScore);
+      if (bestBrew) {
+        bestScoreBean = {
+          beanId: bestBrew.bag.beanId,
+          beanName: bestBrew.bag.bean.name,
+          roasterName: bestBrew.bag.bean.roaster?.name || 'Unknown',
+        };
+      }
+    }
+
     const beanIdSet = new Set<string>();
     const roasterIdSet = new Set<string>();
     for (const brew of brews) {
@@ -388,6 +401,7 @@ export async function analyticsRoutes(server: FastifyInstance) {
       totalBrews,
       avgScore,
       bestScore,
+      bestScoreBean,
       uniqueBeans,
       uniqueRoasters,
       methodBreakdown,
