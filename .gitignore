@@ -1,6 +1,5 @@
 node_modules/
 .pnpm-store/
-backups/
 
 # Build output
 dist/
@@ -20,10 +19,6 @@ dist/
 # OS files
 .DS_Store
 Thumbs.db
-
-# IDE (keep .cursor/rules/ for agent rules)
-.cursor/*
-!.cursor/rules/
 
 # Misc
 *.plan.md
