@@ -113,6 +113,14 @@ Web at `localhost:3000`, API at `localhost:3001`.
 
 TypeScript monorepo — Fastify + Prisma + SQLite API, Next.js 15 web app, Tailwind CSS, Zustand, TanStack React Query. Managed with Turborepo and pnpm workspaces.
 
+## A Friendly Heads-Up
+
+Kissa was built as a personal, local-network companion — the kind of thing that lives on a Pi in your kitchen, not on the open internet.
+
+There's **no authentication**, no user accounts, no HTTPS, and no hardening of any kind. It trusts whoever can reach it on the network, which is fine when that network is your home Wi-Fi, and very much not fine on a public server.
+
+**Please don't expose Kissa to the internet.** If you do, that's on you — I built this to track my coffee, not to withstand the chaos of the world wide web. No guarantees, no liability, just good vibes and hopefully good coffee.
+
 ## License
 
 This project is open source. See the [LICENSE](LICENSE) file for details.
