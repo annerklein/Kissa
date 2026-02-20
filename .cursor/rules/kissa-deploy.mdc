@@ -1,6 +1,6 @@
 ---
 description: Deployment, backup, seed data, and development setup for the Kissa project.
-globs: deploy*.sh, docker/**, scripts/**, ha-addon/**, seed-coffee-data.sh, coffee-seed-data.json
+globs: scripts/deploy*.sh, docker/**, scripts/**, ha-addon/**, seed-coffee-data.sh, coffee-seed-data.json
 alwaysApply: false
 ---
 
@@ -15,15 +15,15 @@ Images are **built locally** (Mac) for ARM64 and **transferred to Raspberry Pi**
 ## One-Click Deploy
 
 ```bash
-./deploy.sh                     # Deploy everything
-./deploy.sh --api-only          # API only (faster)
-./deploy.sh --web-only          # Web only
-./deploy.sh --skip-build        # Redeploy existing images
-./deploy.sh --clean             # Clean old images after deploy
-./deploy.sh --rpi-host HOST --rpi-user USER --rpi-pass PASS  # Custom
+./scripts/deploy.sh                     # Deploy everything
+./scripts/deploy.sh --api-only          # API only (faster)
+./scripts/deploy.sh --web-only          # Web only
+./scripts/deploy.sh --skip-build        # Redeploy existing images
+./scripts/deploy.sh --clean             # Clean old images after deploy
+./scripts/deploy.sh --rpi-host HOST --rpi-user USER --rpi-pass PASS  # Override .env
 ```
 
-**Default connection:** `$RPI_USER@$RPI_HOST` (password in .env)
+**Connection:** Loaded from `.env` at project root (see `.env.example`). Can be overridden via flags.
 
 **What it does:**
 1. Builds Docker images with `--platform linux/arm64`
@@ -35,6 +35,9 @@ Images are **built locally** (Mac) for ARM64 and **transferred to Raspberry Pi**
 ## Manual Deploy
 
 ```bash
+# Load .env
+source .env
+
 # Build
 docker build --platform linux/arm64 -f docker/api.Dockerfile -t kissa-api:latest .
 docker build --platform linux/arm64 -f docker/web.Dockerfile -t kissa-web:latest .
@@ -110,8 +113,10 @@ Not in UI. Checkpoints WAL, streams DB file as download with timestamped filenam
 ### Download Backup
 
 ```bash
+source .env
+
 # From production
-command curl -s -o kissa-backup.db http://<your-rpi-host>:3001/internal/backup/db
+command curl -s -o kissa-backup.db $PROD_API_URL/internal/backup/db
 
 # From dev
 command curl -s -o kissa-backup.db http://localhost:3001/internal/backup/db
@@ -119,6 +124,7 @@ command curl -s -o kissa-backup.db http://localhost:3001/internal/backup/db
 
 **Fallback (SSH):**
 ```bash
+source .env
 ssh $RPI_USER@$RPI_HOST 'sudo docker cp kissa-api:/app/data/kissa.db /tmp/kissa-backup.db'
 ssh $RPI_USER@$RPI_HOST 'cat /tmp/kissa-backup.db' > backups/kissa-backup-$(date +%Y-%m-%d).db
 ```
@@ -127,6 +133,7 @@ ssh $RPI_USER@$RPI_HOST 'cat /tmp/kissa-backup.db' > backups/kissa-backup-$(date
 
 **On RPi:**
 ```bash
+source .env
 ssh $RPI_USER@$RPI_HOST 'sudo docker stop kissa-api'
 cat kissa-backup.db | ssh $RPI_USER@$RPI_HOST 'cat > /tmp/kissa-restore.db'
 ssh $RPI_USER@$RPI_HOST 'sudo cp /tmp/kissa-restore.db /var/lib/docker/volumes/kissa-data/_data/kissa.db'

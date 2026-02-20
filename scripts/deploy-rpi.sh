@@ -1,9 +1,12 @@
 #!/bin/bash
 # Kissa Coffee App - Raspberry Pi Deployment Script
-# Usage: ./deploy-rpi.sh <RPI_USER>@<RPI_IP>
-# Example: ./deploy-rpi.sh pi@192.168.1.100
+# Usage: ./scripts/deploy-rpi.sh <RPI_USER>@<RPI_IP>
+# Example: ./scripts/deploy-rpi.sh pi@192.168.1.100
 
 set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 RPI_TARGET="${1:-pi@raspberrypi.local}"
 REMOTE_DIR="/home/$(echo $RPI_TARGET | cut -d@ -f1)/kissa"
@@ -21,7 +24,7 @@ rsync -avz --progress \
   --exclude 'apps/mobile' \
   --exclude '.cursor' \
   --exclude '.env.local' \
-  ./ "$RPI_TARGET:$REMOTE_DIR/"
+  "$PROJECT_ROOT/" "$RPI_TARGET:$REMOTE_DIR/"
 
 # Run deployment commands on RPi
 echo "🐳 Building and starting containers on RPi..."

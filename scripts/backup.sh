@@ -14,13 +14,21 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a
+    source "$PROJECT_ROOT/.env"
+    set +a
+fi
+
 BACKUP_DIR="backups"
 TODAY=$(date +%Y-%m-%d)
 BACKUP_FILE="$BACKUP_DIR/kissa-backup-$TODAY.db"
-PROD_URL="http://<your-rpi-host>:3001/internal/backup/db"
+PROD_URL="${PROD_API_URL:-http://localhost:3001}/internal/backup/db"
 DEV_URL="http://localhost:3001/internal/backup/db"
-RPI_HOST="${RPI_HOST:-<your-rpi-host>.local}"
-RPI_USER="${RPI_USER:-<your-ssh-user>}"
+RPI_HOST="${RPI_HOST:?RPI_HOST not set. Copy .env.example to .env and fill in your values.}"
+RPI_USER="${RPI_USER:?RPI_USER not set. Copy .env.example to .env and fill in your values.}"
 
 # Check if today's backup already exists
 if [ -f "$BACKUP_FILE" ]; then

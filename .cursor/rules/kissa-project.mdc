@@ -179,6 +179,8 @@ kissa/
 │
 ├── scripts/
 │   ├── backup.sh
+│   ├── deploy.sh                    # One-command RPi deployment
+│   ├── deploy-rpi.sh               # Alternative rsync-based deploy
 │   ├── run-tests.sh
 │   └── verify-deploy.sh
 │
@@ -190,12 +192,12 @@ kissa/
 │   ├── kissa-prisma.mdc
 │   └── kissa-deploy.mdc
 │
-├── deploy.sh
-├── deploy-rpi.sh
 ├── seed-coffee-data.sh
 ├── coffee-seed-data.json
 ├── package.json
 ├── pnpm-workspace.yaml
+├── .env                  # Local config (git-ignored, created from .env.example)
+├── .env.example          # Template with placeholder values (committed)
 ├── turbo.json
 ├── tsconfig.json
 └── .dockerignore

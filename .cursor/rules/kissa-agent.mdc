@@ -56,13 +56,13 @@ All 145+ tests must pass. If your change needs new tests, add them to `apps/api/
 
 ```bash
 # API-only changes:
-./deploy.sh --api-only --clean
+./scripts/deploy.sh --api-only --clean
 
 # Web-only changes:
-./deploy.sh --web-only --clean
+./scripts/deploy.sh --web-only --clean
 
 # Full-stack changes (API + Web):
-./deploy.sh --clean
+./scripts/deploy.sh --clean
 ```
 
 Run with `required_permissions: ["all"]`. Takes ~2 minutes. See `kissa-deploy` rule for details.
@@ -90,7 +90,7 @@ A task is ONLY complete when ALL are true:
 - [ ] Code changes implemented
 - [ ] Cursor rules updated (if documented patterns changed)
 - [ ] Tests written and full suite passes (`./scripts/run-tests.sh`)
-- [ ] Deployed to RPi (`./deploy.sh`)
+- [ ] Deployed to RPi (`./scripts/deploy.sh`)
 - [ ] Deployment verified (`./scripts/verify-deploy.sh` + manual feature test)
 - [ ] **ALL changes committed** — run `git status` to confirm clean working tree
 
@@ -98,12 +98,14 @@ A task is ONLY complete when ALL are true:
 
 ## Production Environment
 
+Connection details are loaded from `.env` at project root. Copy `.env.example` to `.env` and fill in your values.
+
 | Service | URL |
 |---------|-----|
-| Web App | `http://<your-rpi-host>:3000` |
-| API | `http://<your-rpi-host>:3001` |
-| Health | `http://<your-rpi-host>:3001/health` |
-| Backup | `http://<your-rpi-host>:3001/internal/backup/db` |
+| Web App | `$PROD_WEB_URL` (from .env) |
+| API | `$PROD_API_URL` (from .env) |
+| Health | `$PROD_API_URL/health` |
+| Backup | `$PROD_API_URL/internal/backup/db` |
 | SSH | `$RPI_USER@$RPI_HOST` (password in .env) |
 
 ## Conventions
@@ -152,5 +154,5 @@ A task is ONLY complete when ALL are true:
 12. **Mobile is a scaffold** — `apps/mobile` has config but minimal screens
 13. **API URL detection** — `@kissa/api-client` tries `EXPO_PUBLIC_API_URL` then `NEXT_PUBLIC_API_URL` then fallback `http://kissa.local:3001`. Dev: `http://localhost:3001`
 14. **World map is pure SVG** — Uses Equirectangular projection with real lat/lng coordinates. No external map library or access tokens needed
-15. **No CI/CD** — Deployment is manual via `deploy.sh`
+15. **No CI/CD** — Deployment is manual via `scripts/deploy.sh`
 16. **Suggestion apply naming** — `applyTo: 'bag'` adjusts **bean-level** recipe (legacy naming)

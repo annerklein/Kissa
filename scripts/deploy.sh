@@ -3,7 +3,7 @@
 # Kissa Coffee Tracker - Deployment Script
 # Builds Docker images locally for ARM64, transfers to RPi, and starts containers.
 #
-# Usage: ./deploy.sh [options]
+# Usage: ./scripts/deploy.sh [options]
 #   --rpi-host     RPi hostname/IP (from .env or flag)
 #   --rpi-user     RPi SSH username (from .env or flag)
 #   --rpi-pass     RPi SSH password (from .env or flag)
@@ -17,11 +17,19 @@
 set -e
 
 # =============================================================================
-# Configuration (can be overridden via environment or flags)
+# Configuration (loaded from .env, overridable via environment or flags)
 # =============================================================================
-RPI_HOST="${RPI_HOST:-<your-rpi-host>.local}"
-RPI_USER="${RPI_USER:-<your-ssh-user>}"
-RPI_PASS="${RPI_PASS:-<your-ssh-password>}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a
+    source "$PROJECT_ROOT/.env"
+    set +a
+fi
+
+RPI_HOST="${RPI_HOST:?RPI_HOST not set. Copy .env.example to .env and fill in your values.}"
+RPI_USER="${RPI_USER:?RPI_USER not set. Copy .env.example to .env and fill in your values.}"
+RPI_PASS="${RPI_PASS:?RPI_PASS not set. Copy .env.example to .env and fill in your values.}"
 SKIP_BUILD=false
 API_ONLY=false
 WEB_ONLY=false
@@ -189,8 +197,7 @@ build_images() {
         return
     fi
     
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    cd "$SCRIPT_DIR"
+    cd "$PROJECT_ROOT"
     
     if [ "$WEB_ONLY" != true ]; then
         log_info "Building API image for ARM64..."

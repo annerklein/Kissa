@@ -49,7 +49,7 @@ SQLite stores JSON as strings. Always:
 
 ## API Endpoints Reference
 
-Base URL: `http://localhost:3001` (dev) / `http://<your-rpi-host>:3001` (prod)
+Base URL: `http://localhost:3001` (dev) / `$PROD_API_URL` from `.env` (prod)
 
 ### Health
 

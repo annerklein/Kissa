@@ -1,67 +1,73 @@
-# Kissa Coffee Tracker - Home Assistant Add-on
+# Kissa Coffee Tracker — Home Assistant Add-on
 
-This directory contains the Home Assistant add-on for Kissa Coffee Tracker.
+A Home Assistant add-on for [Kissa](../README.md), the self-hosted coffee brewing companion. Integrates directly into the HA sidebar for quick access to your brew dashboard.
 
 ## Installation
 
-### Option 1: Local Add-on (Recommended for development)
+### From GitHub Repository
 
-1. Copy the `ha-addon` folder to your Home Assistant's `/addons` directory:
-   ```bash
-   scp -r ha-addon/* root@<HA_IP>:/addons/kissa/
-   ```
+1. In Home Assistant, go to **Settings** → **Add-ons** → **Add-on Store**
+2. Click **⋮** (top right) → **Repositories**
+3. Add: `https://github.com/anner-klein/kissa`
+4. Refresh, then install **Kissa Coffee Tracker** from the store
 
-2. In Home Assistant:
-   - Go to **Settings** → **Add-ons** → **Add-on Store**
-   - Click the **⋮** menu (top right) → **Check for updates**
-   - The "Kissa Coffee Tracker" should appear under "Local add-ons"
+### Local Install (Development)
 
-3. Click on it and hit **Install**
+```bash
+scp -r ha-addon/* root@<your-ha-ip>:/addons/kissa/
+```
 
-### Option 2: GitHub Repository
+Then in HA: **Settings** → **Add-ons** → **Add-on Store** → **⋮** → **Check for updates** → install from Local add-ons.
 
-1. Push this repository to GitHub
+## Ports
 
-2. In Home Assistant:
-   - Go to **Settings** → **Add-ons** → **Add-on Store**
-   - Click the **⋮** menu → **Repositories**
-   - Add: `https://github.com/<your-username>/kissa-ha-addon`
+| Port | Service |
+|------|---------|
+| 3000 | Web UI  |
+| 3001 | API     |
 
-3. The add-on will appear in the store
+## Data & Backups
 
-## Required Files
+All data is stored in a single SQLite file at `/config/kissa/kissa.db`. This path is inside Home Assistant's config directory, so it is **automatically included in HA backups**.
 
-Before installing, add these image files to the `kissa/` directory:
+You can also download a backup manually:
 
-- `icon.png` - 128x128 pixel icon for the add-on store
-- `logo.png` - 256x256 pixel logo (optional)
+```bash
+curl -o kissa-backup.db http://<your-ha-ip>:3001/internal/backup/db
+```
 
-You can use the Kissa logo from `apps/web/public/` or create new ones.
+## Supported Architectures
+
+| Architecture | Platform |
+|--------------|----------|
+| `aarch64`    | Raspberry Pi 4/5 (64-bit) |
+| `armv7`      | Raspberry Pi 3/4 (32-bit) |
+| `amd64`      | Intel / AMD x86_64 |
+
+## Configuration
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `log_level` | Logging verbosity | `info` |
+
+Valid log levels: `trace`, `debug`, `info`, `warning`, `error`, `fatal`
 
 ## Directory Structure
 
 ```
 ha-addon/
-├── repository.yaml      # Repository metadata
-├── README.md            # This file
+├── repository.yaml       # Repository metadata for HA
 └── kissa/
-    ├── config.yaml      # Add-on configuration
-    ├── Dockerfile       # Container build instructions
-    ├── run.sh           # Startup script
-    ├── build.yaml       # Build settings per architecture
-    ├── CHANGELOG.md     # Version history
-    ├── DOCS.md          # User documentation
-    ├── icon.png         # Add-on icon (add manually)
-    └── logo.png         # Add-on logo (add manually)
+    ├── config.yaml       # Add-on configuration
+    ├── Dockerfile        # Multi-arch container build
+    ├── run.sh            # Container entrypoint
+    ├── build.yaml        # Per-architecture build settings
+    ├── DOCS.md           # User-facing documentation
+    └── CHANGELOG.md      # Version history
 ```
 
-## Ports
+## Resources
 
-| Port | Description |
-|------|-------------|
-| 3000 | Web UI |
-| 3001 | API |
-
-## Data Persistence
-
-All data is stored at `/config/kissa/kissa.db` and is automatically included in Home Assistant backups.
+- [Main project README](../README.md)
+- [User documentation](kissa/DOCS.md)
+- [Changelog](kissa/CHANGELOG.md)

@@ -16,8 +16,16 @@
 
 set -e
 
-API_URL="${API_URL:-http://<your-rpi-host>:3001}"
-WEB_URL="${WEB_URL:-http://<your-rpi-host>:3000}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a
+    source "$PROJECT_ROOT/.env"
+    set +a
+fi
+
+API_URL="${API_URL:-${PROD_API_URL:?PROD_API_URL not set. Copy .env.example to .env and fill in your values.}}"
+WEB_URL="${WEB_URL:-${PROD_WEB_URL:?PROD_WEB_URL not set. Copy .env.example to .env and fill in your values.}}"
 FAILED=0
 
 echo "=== Kissa Post-Deployment Verification ==="
