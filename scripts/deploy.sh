@@ -125,7 +125,7 @@ expect {
 EOF
 }
 
-# Transfer a file to RPi via SSH pipe (scp doesn't work on HA OS)
+# Transfer a file to RPi via SSH pipe
 transfer_file() {
     local local_file="$1"
     local remote_file="$2"

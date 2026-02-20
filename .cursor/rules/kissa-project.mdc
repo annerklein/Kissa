@@ -167,16 +167,6 @@ kissa/
 │   ├── docker-compose.yml
 │   └── docker-compose.dev.yml
 │
-├── ha-addon/                       # Home Assistant add-on
-│   ├── repository.yaml
-│   └── kissa/
-│       ├── config.yaml
-│       ├── Dockerfile
-│       ├── run.sh
-│       ├── build.yaml
-│       ├── DOCS.md
-│       └── CHANGELOG.md
-│
 ├── scripts/
 │   ├── backup.sh
 │   ├── deploy.sh                    # One-command RPi deployment

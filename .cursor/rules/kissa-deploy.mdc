@@ -1,6 +1,6 @@
 ---
 description: Deployment, backup, seed data, and development setup for the Kissa project.
-globs: scripts/deploy*.sh, docker/**, scripts/**, ha-addon/**, seed-coffee-data.sh, coffee-seed-data.json
+globs: scripts/deploy*.sh, docker/**, scripts/**, seed-coffee-data.sh, coffee-seed-data.json
 alwaysApply: false
 ---
 
@@ -28,7 +28,7 @@ Images are **built locally** (Mac) for ARM64 and **transferred to Raspberry Pi**
 **What it does:**
 1. Builds Docker images with `--platform linux/arm64`
 2. Saves and gzip-compresses (~180MB API, ~350MB Web)
-3. Transfers to RPi via SSH pipe (scp not available on HA OS)
+3. Transfers to RPi via SSH pipe
 4. Stops old containers, loads new images, starts new containers
 5. Waits for health checks to pass
 
@@ -42,7 +42,7 @@ source .env
 docker build --platform linux/arm64 -f docker/api.Dockerfile -t kissa-api:latest .
 docker build --platform linux/arm64 -f docker/web.Dockerfile -t kissa-web:latest .
 
-# Save and transfer (scp doesn't work on HA OS)
+# Save and transfer
 docker save kissa-api:latest kissa-web:latest | gzip > /tmp/kissa-images.tar.gz
 cat /tmp/kissa-images.tar.gz | ssh $RPI_USER@$RPI_HOST 'cat > /tmp/kissa-images.tar.gz'
 
@@ -82,17 +82,6 @@ Prisma client pre-generated for ARM64 at build time.
 | `docker/standalone-start.sh` | Standalone startup script |
 | `docker/docker-compose.yml` | Compose config (reference) |
 | `docker/docker-compose.dev.yml` | Dev with volume mounts |
-
-## Home Assistant Add-on
-
-`ha-addon/` contains a full HA add-on:
-- Per-architecture base images (aarch64, armv7, amd64)
-- Data at `/config/kissa/kissa.db` (included in HA backups)
-- Sidebar integration via ingress (`mdi:coffee`)
-- Uses `bashio` for HA logging
-- Registry: `ghcr.io/anner-klein/kissa-addon-{arch}`
-
-Install: copy `ha-addon/` to HA's `/addons` directory, or add GitHub repo as custom repository.
 
 ## Database Backup
 
@@ -152,7 +141,6 @@ cp kissa-backup.db apps/api/prisma/data/kissa.db
 | Local dev | `apps/api/prisma/data/kissa.db` |
 | Docker (RPi) | `/app/data/kissa.db` (volume: `kissa-data`) |
 | Standalone | `/data/kissa.db` (volume: `kissa-data`) |
-| HA Add-on | `/config/kissa/kissa.db` |
 
 ## Seed Data
 
