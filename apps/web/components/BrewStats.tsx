@@ -11,6 +11,7 @@ type Period = 'all' | 'year' | '90d' | '30d';
 interface StatsData {
   period: string;
   totalBrews: number;
+  ratedBrews: number;
   avgScore: number | null;
   bestScore: number | null;
   bestScoreBean: { beanId: string; beanName: string; roasterName: string } | null;
@@ -114,7 +115,7 @@ export function BrewStats() {
         <div className="space-y-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-2 gap-3 animate-slide-up" style={{ animationDelay: '0.15s' }}>
-            <SummaryCard label="Total Brews" value={stats.totalBrews.toString()} icon="☕" />
+            <SummaryCard label="Total Brews" value={stats.totalBrews.toString()} icon="☕" subtitle={`${stats.ratedBrews} rated`} />
             <SummaryCard label="Avg Score" value={formatScore(stats.avgScore)} icon="⭐" />
             <SummaryCard
               label="Best Score"

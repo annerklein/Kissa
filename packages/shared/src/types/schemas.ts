@@ -26,7 +26,7 @@ export type SettingsUpdate = z.infer<typeof SettingsUpdateSchema>;
 export const GrinderStateSchema = z.object({
   id: z.string().uuid(),
   grinderModel: z.string().default('Comandante C40'),
-  currentSetting: z.number().min(0).max(50).default(20),
+  currentSetting: z.number().min(0).max(99).default(20),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -34,7 +34,7 @@ export const GrinderStateSchema = z.object({
 export type GrinderState = z.infer<typeof GrinderStateSchema>;
 
 export const GrinderApplySchema = z.object({
-  newSetting: z.number().min(0).max(50),
+  newSetting: z.number().min(0).max(99),
 });
 
 export type GrinderApply = z.infer<typeof GrinderApplySchema>;

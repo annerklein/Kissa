@@ -255,6 +255,25 @@ describe('Brews API', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Unrated brews (skip rating / "Just Brew")
+  // ---------------------------------------------------------------------------
+  describe('Unrated brews', () => {
+    it('a brew without rating has null computedScore and ratingSliders', async () => {
+      const brew = json(
+        await app.inject({
+          method: 'POST',
+          url: '/api/brews',
+          payload: { bagId: bag.id, methodId: v60.id, parameters: { grindSize: 22 } },
+        })
+      );
+
+      const fetched = json(await app.inject({ method: 'GET', url: `/api/brews/${brew.id}` }));
+      expect(fetched.computedScore).toBeNull();
+      expect(fetched.ratingSliders).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // PATCH /api/brews/:id
   // ---------------------------------------------------------------------------
   describe('PATCH /api/brews/:id', () => {

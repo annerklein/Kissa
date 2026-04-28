@@ -85,11 +85,10 @@ function BrewPageContent() {
     },
   });
 
+  const [lastAction, setLastAction] = useState<'rate' | 'log' | null>(null);
+
   const brewMutation = useMutation({
     mutationFn: createBrew,
-    onSuccess: (brew) => {
-      router.push(`/rate?brewId=${brew.id}`);
-    },
   });
 
   if (!bagId || !methodId) {
@@ -150,16 +149,33 @@ function BrewPageContent() {
   const water = scaledRecipe.ratio ? dose * scaledRecipe.ratio : 0;
   const scaleFactor = scaledRecipe.dose ? dose / scaledRecipe.dose : 1;
 
-  const handleStartBrew = () => {
-    brewMutation.mutate({
-      bagId: bag.id,
-      methodId: method.id,
-      parameters: {
-        dose,
-        water: water || undefined,
-        ratio: scaledRecipe.ratio,
-        waterTemp: scaledRecipe.waterTemp,
-        grindSize: targetSetting,
+  const brewData = {
+    bagId: bag.id,
+    methodId: method.id,
+    parameters: {
+      dose,
+      water: water || undefined,
+      ratio: scaledRecipe.ratio,
+      waterTemp: scaledRecipe.waterTemp,
+      grindSize: targetSetting,
+    },
+  };
+
+  const handleBrewAndRate = () => {
+    setLastAction('rate');
+    brewMutation.mutate(brewData, {
+      onSuccess: (brew) => {
+        router.push(`/rate?brewId=${brew.id}`);
+      },
+    });
+  };
+
+  const handleJustBrew = () => {
+    setLastAction('log');
+    brewMutation.mutate(brewData, {
+      onSuccess: () => {
+        queryClient.invalidateQueries();
+        router.push('/');
       },
     });
   };
@@ -234,15 +250,15 @@ function BrewPageContent() {
         </div>
       </div>
 
-      {/* Floating Action Button */}
+      {/* Floating Action Buttons */}
       <div className="floating-action">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto space-y-2">
           <button
-            onClick={handleStartBrew}
+            onClick={handleBrewAndRate}
             disabled={brewMutation.isPending}
             className="w-full btn-primary py-4 text-lg font-semibold flex items-center justify-center gap-2"
           >
-            {brewMutation.isPending ? (
+            {brewMutation.isPending && lastAction === 'rate' ? (
               <>
                 <span className="animate-spin">⏳</span>
                 Starting...
@@ -250,8 +266,22 @@ function BrewPageContent() {
             ) : (
               <>
                 <span>☕</span>
-                Start Brewing
+                Brew & Rate
               </>
+            )}
+          </button>
+          <button
+            onClick={handleJustBrew}
+            disabled={brewMutation.isPending}
+            className="w-full py-3 text-sm font-medium text-coffee-500 hover:text-coffee-700 transition-colors flex items-center justify-center gap-1.5"
+          >
+            {brewMutation.isPending && lastAction === 'log' ? (
+              <>
+                <span className="animate-spin text-xs">⏳</span>
+                Logging...
+              </>
+            ) : (
+              'Just Brew — skip rating'
             )}
           </button>
         </div>

@@ -262,7 +262,7 @@ export default function HomePage() {
                 <p className="text-sm text-coffee-500 mt-1">clicks</p>
               </div>
               <button
-                onClick={() => setTempGrindSetting((s) => Math.min(50, s + 1))}
+                onClick={() => setTempGrindSetting((s) => Math.min(99, s + 1))}
                 className="w-14 h-14 rounded-full bg-coffee-100 hover:bg-coffee-200 text-coffee-800 font-bold text-2xl transition-colors"
               >
                 +

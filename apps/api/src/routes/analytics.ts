@@ -399,6 +399,7 @@ export async function analyticsRoutes(server: FastifyInstance) {
     return {
       period: period || 'all',
       totalBrews,
+      ratedBrews: scores.length,
       avgScore,
       bestScore,
       bestScoreBean,

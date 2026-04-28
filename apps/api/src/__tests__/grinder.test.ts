@@ -55,6 +55,17 @@ describe('Grinder API', () => {
       expect(res.statusCode).toBe(400);
     });
 
+    it('accepts settings up to 99', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/grinder/apply',
+        payload: { newSetting: 99 },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = json(res);
+      expect(body.currentSetting).toBe(99);
+    });
+
     it('returns 400 for out-of-range setting', async () => {
       const res = await app.inject({
         method: 'POST',

@@ -181,6 +181,7 @@ describe('Analytics API', () => {
       const body = json(res);
       expect(body.period).toBe('all');
       expect(typeof body.totalBrews).toBe('number');
+      expect(typeof body.ratedBrews).toBe('number');
       expect(typeof body.uniqueBeans).toBe('number');
       expect(typeof body.uniqueRoasters).toBe('number');
       expect(Array.isArray(body.methodBreakdown)).toBe(true);
@@ -291,6 +292,30 @@ describe('Analytics API', () => {
           expect(note.count).toBeGreaterThanOrEqual(1);
         }
       }
+    });
+
+    it('ratedBrews counts only brews with scores, unrated brews count in totalBrews only', async () => {
+      const unratedRoaster = await createRoaster(app, 'Unrated Roaster');
+      const unratedBean = await createBean(app, unratedRoaster.id, 'Unrated Bean', {
+        originCountry: 'BR',
+      });
+      const unratedBag = await createBag(app, unratedBean.id);
+      const v60 = await getV60Method(app);
+
+      const before = json(await app.inject({ method: 'GET', url: '/api/analytics/stats' }));
+
+      // Create a brew WITHOUT rating (simulates "Just Brew")
+      await app.inject({
+        method: 'POST',
+        url: '/api/brews',
+        payload: { bagId: unratedBag.id, methodId: v60.id, parameters: { grindSize: 20 } },
+      });
+
+      const after = json(await app.inject({ method: 'GET', url: '/api/analytics/stats' }));
+
+      expect(after.totalBrews).toBe(before.totalBrews + 1);
+      expect(after.ratedBrews).toBe(before.ratedBrews);
+      expect(after.ratedBrews).toBeLessThanOrEqual(after.totalBrews);
     });
 
     it('period filter excludes brews outside the date range', async () => {
