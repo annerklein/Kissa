@@ -116,7 +116,7 @@ export type BeanWithRoaster = z.infer<typeof BeanWithRoasterSchema>;
 // BAG
 // ============================================
 
-export const BagStatusSchema = z.enum(['UNOPENED', 'OPEN', 'FINISHED', 'FROZEN']);
+export const BagStatusSchema = z.enum(['OPEN', 'FINISHED', 'FROZEN']);
 
 export const TubePositionSchema = z.enum(['LEFT', 'MIDDLE', 'RIGHT']);
 
@@ -126,13 +126,14 @@ export const BagSchema = z.object({
   roastDate: z.coerce.date(),
   openedDate: z.coerce.date().nullable().optional(),
   bagSizeGrams: z.number().int().positive().nullable().optional(),
-  status: BagStatusSchema.default('UNOPENED'),
+  status: BagStatusSchema.default('OPEN'),
   isAvailable: z.boolean().default(true),
   tubePosition: TubePositionSchema.nullable().optional(),
   notes: z.string().nullable().optional(),
   frozenAt: z.coerce.date().nullable().optional(),
   totalFrozenDays: z.number().int().min(0).default(0),
   isFrozenBag: z.boolean().default(false),
+  frozenGrams: z.number().int().positive().nullable().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -144,13 +145,14 @@ export const BagCreateSchema = z.object({
   roastDate: z.coerce.date(),
   openedDate: z.coerce.date().optional(),
   bagSizeGrams: z.number().int().positive().optional(),
-  status: BagStatusSchema.default('UNOPENED'),
+  status: BagStatusSchema.default('OPEN'),
   isAvailable: z.boolean().default(true),
   tubePosition: TubePositionSchema.nullable().optional(),
   notes: z.string().optional(),
   frozenAt: z.coerce.date().optional(),
   totalFrozenDays: z.number().int().min(0).optional(),
   isFrozenBag: z.boolean().optional(),
+  frozenGrams: z.number().int().positive().nullable().optional(),
 });
 
 export type BagCreate = z.infer<typeof BagCreateSchema>;

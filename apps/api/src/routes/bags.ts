@@ -174,15 +174,23 @@ export async function bagsRoutes(server: FastifyInstance) {
 
     const updateData: Record<string, any> = { ...body.data };
 
-    // Handle freeze transition: any status -> FROZEN
-    if (body.data.status === 'FROZEN' && currentBag.status !== 'FROZEN') {
-      updateData.frozenAt = new Date();
-      updateData.isAvailable = false;
+    // Handle partial freeze: frozenGrams is set but NOT doing a full freeze
+    const isSettingFrozenGrams = 'frozenGrams' in (body.data as Record<string, any>) && body.data.frozenGrams !== null && body.data.frozenGrams !== undefined && (body.data.frozenGrams as number) > 0;
+    if (isSettingFrozenGrams && body.data.status !== 'FROZEN') {
+      if (!currentBag.frozenAt) {
+        updateData.frozenAt = new Date();
+      }
+      if (!body.data.status) {
+        updateData.status = 'OPEN';
+      }
+      if (body.data.isAvailable === undefined) {
+        updateData.isAvailable = true;
+      }
     }
 
-    // Handle unfreeze transition: FROZEN -> OPEN (thaw)
-    if (body.data.status && body.data.status !== 'FROZEN' && currentBag.status === 'FROZEN') {
-      // Calculate days spent in this freeze cycle
+    // Handle thaw portion: frozenGrams explicitly set to null while bag has frozenGrams
+    const isClearingFrozenGrams = 'frozenGrams' in (body.data as Record<string, any>) && body.data.frozenGrams === null;
+    if (isClearingFrozenGrams && currentBag.frozenGrams && currentBag.frozenGrams > 0 && currentBag.status !== 'FROZEN') {
       if (currentBag.frozenAt) {
         const now = new Date();
         const frozenDate = new Date(currentBag.frozenAt);
@@ -192,7 +200,28 @@ export async function bagsRoutes(server: FastifyInstance) {
         updateData.totalFrozenDays = currentBag.totalFrozenDays + frozenDays;
       }
       updateData.frozenAt = null;
-      // When unfreezing, default to OPEN and available
+      updateData.frozenGrams = null;
+    }
+
+    // Handle full freeze transition: any status -> FROZEN
+    if (body.data.status === 'FROZEN' && currentBag.status !== 'FROZEN') {
+      updateData.frozenAt = new Date();
+      updateData.isAvailable = false;
+      updateData.frozenGrams = null;
+    }
+
+    // Handle unfreeze transition: FROZEN -> OPEN (thaw)
+    if (body.data.status && body.data.status !== 'FROZEN' && currentBag.status === 'FROZEN') {
+      if (currentBag.frozenAt) {
+        const now = new Date();
+        const frozenDate = new Date(currentBag.frozenAt);
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const frozenDay = new Date(frozenDate.getFullYear(), frozenDate.getMonth(), frozenDate.getDate());
+        const frozenDays = Math.floor((today.getTime() - frozenDay.getTime()) / (1000 * 60 * 60 * 24));
+        updateData.totalFrozenDays = currentBag.totalFrozenDays + frozenDays;
+      }
+      updateData.frozenAt = null;
+      updateData.frozenGrams = null;
       if (body.data.status === 'OPEN' || !body.data.status) {
         updateData.status = 'OPEN';
         updateData.isAvailable = true;

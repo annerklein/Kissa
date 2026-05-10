@@ -11,7 +11,6 @@ export const RoastLevel = {
 export type RoastLevel = (typeof RoastLevel)[keyof typeof RoastLevel];
 
 export const BagStatus = {
-  UNOPENED: 'UNOPENED',
   OPEN: 'OPEN',
   FINISHED: 'FINISHED',
   FROZEN: 'FROZEN',

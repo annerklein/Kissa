@@ -36,7 +36,7 @@ COPY . .
 
 # Generate Prisma client for the target platform (set via --platform flag)
 WORKDIR /app/apps/api
-RUN pnpm db:generate
+RUN NODE_TLS_REJECT_UNAUTHORIZED=0 pnpm db:generate
 
 # Build shared package first, then API
 WORKDIR /app/packages/shared

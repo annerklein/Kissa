@@ -274,6 +274,169 @@ describe('Bags API', () => {
     });
   });
 
+  describe('Partial freeze (freeze portion)', () => {
+    it('freezes a portion of a bag while keeping it OPEN and available', async () => {
+      const bag = await createBag(app, bean.id);
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { frozenGrams: 125 },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = json(res);
+      expect(body.status).toBe('OPEN');
+      expect(body.isAvailable).toBe(true);
+      expect(body.frozenGrams).toBe(125);
+      expect(body.frozenAt).toBeTruthy();
+    });
+
+    it('thaws a frozen portion by setting frozenGrams to null', async () => {
+      const bag = await createBag(app, bean.id);
+      // Freeze a portion
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { frozenGrams: 100 },
+      });
+
+      // Thaw the portion
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { frozenGrams: null },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = json(res);
+      expect(body.frozenGrams).toBeNull();
+      expect(body.frozenAt).toBeNull();
+      expect(body.totalFrozenDays).toBeGreaterThanOrEqual(0);
+      expect(body.status).toBe('OPEN');
+    });
+
+    it('full freeze clears any frozenGrams', async () => {
+      const bag = await createBag(app, bean.id);
+      // Partially freeze
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { frozenGrams: 50 },
+      });
+
+      // Now full freeze
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'FROZEN' },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = json(res);
+      expect(body.status).toBe('FROZEN');
+      expect(body.frozenGrams).toBeNull();
+      expect(body.isAvailable).toBe(false);
+    });
+
+    it('thawing a full freeze also clears frozenGrams', async () => {
+      const bag = await createBag(app, bean.id);
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'FROZEN' },
+      });
+
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'OPEN', frozenGrams: null },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = json(res);
+      expect(body.status).toBe('OPEN');
+      expect(body.frozenGrams).toBeNull();
+      expect(body.frozenAt).toBeNull();
+      expect(body.isAvailable).toBe(true);
+    });
+
+    it('bag remains a single entity through multiple freeze/thaw cycles', async () => {
+      const bag = await createBag(app, bean.id);
+      const originalId = bag.id;
+
+      // Partial freeze
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { frozenGrams: 100 },
+      });
+
+      // Thaw portion
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { frozenGrams: null },
+      });
+
+      // Full freeze
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'FROZEN' },
+      });
+
+      // Thaw full
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'OPEN' },
+      });
+
+      // Partial freeze again
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { frozenGrams: 75 },
+      });
+
+      const body = json(res);
+      expect(body.id).toBe(originalId);
+      expect(body.frozenGrams).toBe(75);
+      expect(body.status).toBe('OPEN');
+    });
+
+    it('partial freeze does not duplicate bags in available-beans', async () => {
+      const testBean = await createBean(app, roaster.id, 'Partial Freeze Bean');
+      const v60 = await getV60Method(app);
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/beans/${testBean.id}/recipes/${v60.id}`,
+        payload: { grinderTarget: 30 },
+      });
+
+      const bag = await createBag(app, testBean.id, { isAvailable: true });
+
+      // Partially freeze
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { frozenGrams: 100 },
+      });
+
+      const res = json(
+        await app.inject({
+          method: 'GET',
+          url: `/api/available-beans?methodId=${v60.id}`,
+        })
+      );
+
+      // Should still appear in main bags (not frozen section) since status is OPEN
+      const foundInBags = res.bags.filter((b: any) => b.id === bag.id);
+      expect(foundInBags.length).toBe(1);
+      expect(foundInBags[0].frozenGrams).toBe(100);
+
+      // Should NOT appear in frozenBags
+      const foundInFrozen = res.frozenBags.filter((b: any) => b.id === bag.id);
+      expect(foundInFrozen.length).toBe(0);
+    });
+  });
+
   describe('DELETE /api/bags/:id', () => {
     it('deletes a bag', async () => {
       const bag = await createBag(app, bean.id);

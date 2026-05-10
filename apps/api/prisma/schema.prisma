@@ -78,7 +78,6 @@ model Bean {
 // ============================================
 
 enum BagStatus {
-  UNOPENED
   OPEN
   FINISHED
   FROZEN
@@ -91,13 +90,14 @@ model Bag {
   roastDate       DateTime
   openedDate      DateTime?
   bagSizeGrams    Int?
-  status          BagStatus @default(UNOPENED)
+  status          BagStatus @default(OPEN)
   isAvailable     Boolean   @default(true)
   tubePosition    String?   // LEFT, MIDDLE, or RIGHT - position on the tube for open bags
   notes           String?
-  frozenAt        DateTime? // When the bag was frozen (null if not currently frozen)
+  frozenAt        DateTime? // When the bag (or portion) was frozen (null if not currently frozen)
   totalFrozenDays Int       @default(0) // Accumulated frozen days from past freeze/thaw cycles
   isFrozenBag     Boolean   @default(false) // True for bags created as frozen splits (excluded from purchase stats)
+  frozenGrams     Int?      // Grams currently frozen (null = full freeze or no freeze; >0 = partial freeze, bag stays OPEN)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
