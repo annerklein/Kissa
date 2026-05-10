@@ -13,6 +13,7 @@ interface BagCardProps {
     frozenAt?: string | null;
     totalFrozenDays?: number;
     isFrozenBag?: boolean;
+    frozenGrams?: number | null;
     brewLogs: Array<{
       brewedAt: string;
       computedScore: number | null;
@@ -23,17 +24,17 @@ interface BagCardProps {
   onDelete?: () => void;
   onFreeze?: () => void;
   onUnfreeze?: () => void;
+  onThawPortion?: () => void;
   showActions?: boolean;
 }
 
 const statusColors: Record<string, string> = {
-  UNOPENED: 'bg-blue-100 text-blue-700',
   OPEN: 'bg-green-100 text-green-700',
   FINISHED: 'bg-gray-100 text-gray-500',
   FROZEN: 'bg-cyan-100 text-cyan-700',
 };
 
-export function BagCard({ bag, onSelect, onMarkFinished, onDelete, onFreeze, onUnfreeze, showActions = false }: BagCardProps) {
+export function BagCard({ bag, onSelect, onMarkFinished, onDelete, onFreeze, onUnfreeze, onThawPortion, showActions = false }: BagCardProps) {
   const brewLogs = bag.brewLogs || [];
   const brewCount = brewLogs.length;
   const avgScore =
@@ -67,7 +68,7 @@ export function BagCard({ bag, onSelect, onMarkFinished, onDelete, onFreeze, onU
             </span>
             <span
               className={`px-2 py-0.5 rounded-full text-xs ${
-                statusColors[bag.status] || statusColors.UNOPENED
+                statusColors[bag.status] || statusColors.OPEN
               }`}
             >
               {isFrozen ? '❄ frozen' : bag.status.toLowerCase()}
@@ -90,6 +91,13 @@ export function BagCard({ bag, onSelect, onMarkFinished, onDelete, onFreeze, onU
           {!isFrozen && allFrozenDays > 0 && (
             <p className="text-xs text-coffee-400 mt-1">
               {effectiveDaysOffRoast} effective days off roast (frozen {allFrozenDays}d)
+            </p>
+          )}
+
+          {/* Show frozen portion indicator */}
+          {!isFrozen && bag.frozenGrams && bag.frozenGrams > 0 && (
+            <p className="text-xs text-cyan-600 mt-1">
+              ❄ {bag.frozenGrams}g frozen portion
             </p>
           )}
         </div>
@@ -121,7 +129,7 @@ export function BagCard({ bag, onSelect, onMarkFinished, onDelete, onFreeze, onU
       {/* Action buttons */}
       {showActions && (
         <div className="mt-4 pt-3 border-t border-coffee-100 flex gap-2 flex-wrap">
-          {/* Freeze/Unfreeze button */}
+          {/* Thaw button (full freeze) */}
           {isFrozen && onUnfreeze && (
             <button
               onClick={(e) => {
@@ -130,9 +138,22 @@ export function BagCard({ bag, onSelect, onMarkFinished, onDelete, onFreeze, onU
               }}
               className="flex-1 px-3 py-2 text-sm font-medium text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-lg transition-colors"
             >
-              🔥 Unfreeze
+              🔥 Thaw
             </button>
           )}
+          {/* Thaw portion button */}
+          {!isFrozen && bag.frozenGrams && bag.frozenGrams > 0 && onThawPortion && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onThawPortion();
+              }}
+              className="flex-1 px-3 py-2 text-sm font-medium text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-lg transition-colors"
+            >
+              🔥 Thaw Portion
+            </button>
+          )}
+          {/* Freeze button */}
           {!isFrozen && bag.status !== 'FINISHED' && onFreeze && (
             <button
               onClick={(e) => {

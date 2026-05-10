@@ -8,6 +8,7 @@ interface FrozenBag {
   roastDate: string;
   frozenAt?: string | null;
   totalFrozenDays?: number;
+  frozenGrams?: number | null;
   bean: {
     id: string;
     name: string;
@@ -58,7 +59,7 @@ export function FrozenBagCard({ bag, onUnfreeze, isUnfreezing }: FrozenBagCardPr
         </p>
       </div>
 
-      {/* Unfreeze button */}
+      {/* Thaw button */}
       <button
         onClick={() => onUnfreeze(bag.id)}
         disabled={isUnfreezing}

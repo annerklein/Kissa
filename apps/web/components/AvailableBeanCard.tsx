@@ -19,6 +19,7 @@ interface AvailableBag {
   frozenAt?: string | null;
   totalFrozenDays?: number;
   isFrozenBag?: boolean;
+  frozenGrams?: number | null;
   bean: {
     id: string;
     name: string;
@@ -42,9 +43,11 @@ interface AvailableBeanCardProps {
   bag: AvailableBag;
   methodId?: string;
   onTubePositionChange?: (bagId: string, position: TubePos | null) => void;
+  onFreeze?: (bagId: string) => void;
+  onThawPortion?: (bagId: string) => void;
 }
 
-export function AvailableBeanCard({ bag, methodId, onTubePositionChange }: AvailableBeanCardProps) {
+export function AvailableBeanCard({ bag, methodId, onTubePositionChange, onFreeze, onThawPortion }: AvailableBeanCardProps) {
   const { bean, roastDate, lastBrew, grinderDelta } = bag;
 
   // Compute effective days off roast accounting for freeze time
@@ -130,7 +133,28 @@ export function AvailableBeanCard({ bag, methodId, onTubePositionChange }: Avail
         </div>
       </Link>
 
-      {/* Footer: Tube position + Brew link */}
+      {/* Frozen portion indicator */}
+      {bag.frozenGrams && bag.frozenGrams > 0 && (
+        <div className="mt-2 flex items-center gap-2">
+          <span className="badge bg-cyan-50 text-cyan-600 text-xs">
+            ❄ {bag.frozenGrams}g frozen
+          </span>
+          {onThawPortion && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onThawPortion(bag.id);
+              }}
+              className="text-[11px] font-semibold text-cyan-700 hover:text-cyan-900 transition-colors"
+            >
+              🔥 Thaw
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Footer: Tube position + Actions */}
       <div className="mt-3 pt-3 border-t border-coffee-100/50 flex items-center justify-between">
         {/* Tube position inline selector */}
         <div className="flex items-center gap-1.5">
@@ -159,13 +183,28 @@ export function AvailableBeanCard({ bag, methodId, onTubePositionChange }: Avail
           })}
         </div>
 
-        {/* Brew link */}
-        <Link
-          href={`/brew?bagId=${bag.id}&methodId=${methodId}`}
-          className="text-coffee-400 text-sm flex items-center gap-1 hover:text-coffee-600 transition-colors"
-        >
-          Brew now <span className="group-hover:translate-x-1 transition-transform">→</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* Freeze button */}
+          {onFreeze && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onFreeze(bag.id);
+              }}
+              className="text-xs font-semibold text-cyan-600 hover:text-cyan-800 transition-colors"
+            >
+              ❄
+            </button>
+          )}
+          {/* Brew link */}
+          <Link
+            href={`/brew?bagId=${bag.id}&methodId=${methodId}`}
+            className="text-coffee-400 text-sm flex items-center gap-1 hover:text-coffee-600 transition-colors"
+          >
+            Brew now <span className="group-hover:translate-x-1 transition-transform">→</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

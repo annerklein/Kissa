@@ -98,13 +98,33 @@ async function freezeBag(id: string) {
   return res.json();
 }
 
+async function freezeBagPartial(id: string, grams: number) {
+  const res = await fetch(`${API_URL}/api/bags/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ frozenGrams: grams }),
+  });
+  if (!res.ok) throw new Error('Failed to freeze portion');
+  return res.json();
+}
+
 async function unfreezeBag(id: string) {
   const res = await fetch(`${API_URL}/api/bags/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: 'OPEN' }),
+    body: JSON.stringify({ status: 'OPEN', frozenGrams: null }),
   });
   if (!res.ok) throw new Error('Failed to unfreeze bag');
+  return res.json();
+}
+
+async function thawPortion(id: string) {
+  const res = await fetch(`${API_URL}/api/bags/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ frozenGrams: null }),
+  });
+  if (!res.ok) throw new Error('Failed to thaw portion');
   return res.json();
 }
 
@@ -125,7 +145,7 @@ async function deleteBrew(id: string) {
 }
 
 type ConfirmState = {
-  type: 'deleteBean' | 'deleteBag' | 'finishBag' | 'deleteBrew' | 'freezeBag' | 'unfreezeBag' | null;
+  type: 'deleteBean' | 'deleteBag' | 'finishBag' | 'deleteBrew' | 'freezeBag' | 'unfreezeBag' | 'thawPortion' | null;
   targetId?: string;
   targetName?: string;
 };
@@ -151,6 +171,9 @@ export default function BeanProfilePage() {
   const [isEditingRecipes, setIsEditingRecipes] = useState(false);
   const [expandedMethodId, setExpandedMethodId] = useState<string | null>(null);
   const [isEditingBean, setIsEditingBean] = useState(false);
+  const [freezeModalBagId, setFreezeModalBagId] = useState<string | null>(null);
+  const [freezeMode, setFreezeMode] = useState<'full' | 'portion'>('full');
+  const [portionGrams, setPortionGrams] = useState<number>(100);
   
   // Edit bean form state
   const [editName, setEditName] = useState('');
@@ -223,6 +246,24 @@ export default function BeanProfilePage() {
 
   const unfreezeBagMutation = useMutation({
     mutationFn: (bagId: string) => unfreezeBag(bagId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bean', beanId] });
+      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
+      setConfirmState({ type: null });
+    },
+  });
+
+  const freezePartialMutation = useMutation({
+    mutationFn: ({ bagId, grams }: { bagId: string; grams: number }) => freezeBagPartial(bagId, grams),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bean', beanId] });
+      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
+      setFreezeModalBagId(null);
+    },
+  });
+
+  const thawPortionMutation = useMutation({
+    mutationFn: (bagId: string) => thawPortion(bagId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bean', beanId] });
       queryClient.invalidateQueries({ queryKey: ['available-beans'] });
@@ -314,6 +355,9 @@ export default function BeanProfilePage() {
       case 'unfreezeBag':
         if (confirmState.targetId) unfreezeBagMutation.mutate(confirmState.targetId);
         break;
+      case 'thawPortion':
+        if (confirmState.targetId) thawPortionMutation.mutate(confirmState.targetId);
+        break;
     }
   };
 
@@ -323,7 +367,8 @@ export default function BeanProfilePage() {
     finishBagMutation.isPending || 
     deleteBrewMutation.isPending ||
     freezeBagMutation.isPending ||
-    unfreezeBagMutation.isPending;
+    unfreezeBagMutation.isPending ||
+    thawPortionMutation.isPending;
 
   if (isLoading) {
     return (
@@ -690,13 +735,18 @@ export default function BeanProfilePage() {
                   targetId: bag.id,
                   targetName: formatRoastDate(new Date(bag.roastDate))
                 })}
-                onFreeze={() => setConfirmState({
-                  type: 'freezeBag',
+                onFreeze={() => {
+                  setFreezeModalBagId(bag.id);
+                  setFreezeMode('full');
+                  setPortionGrams(bag.bagSizeGrams ? Math.round(bag.bagSizeGrams / 2) : 100);
+                }}
+                onUnfreeze={() => setConfirmState({
+                  type: 'unfreezeBag',
                   targetId: bag.id,
                   targetName: formatRoastDate(new Date(bag.roastDate))
                 })}
-                onUnfreeze={() => setConfirmState({
-                  type: 'unfreezeBag',
+                onThawPortion={() => setConfirmState({
+                  type: 'thawPortion',
                   targetId: bag.id,
                   targetName: formatRoastDate(new Date(bag.roastDate))
                 })}
@@ -892,6 +942,92 @@ export default function BeanProfilePage() {
         </div>
       )}
 
+      {/* Freeze Modal */}
+      {freezeModalBagId && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-xl font-bold text-coffee-900 mb-1 text-center">
+              ❄ Freeze
+            </h3>
+            <p className="text-sm text-coffee-500 text-center mb-4">
+              {bean.name}
+            </p>
+
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setFreezeMode('full')}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  freezeMode === 'full'
+                    ? 'bg-cyan-600 text-white shadow-sm'
+                    : 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100'
+                }`}
+              >
+                Full Freeze
+              </button>
+              <button
+                onClick={() => setFreezeMode('portion')}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  freezeMode === 'portion'
+                    ? 'bg-cyan-600 text-white shadow-sm'
+                    : 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100'
+                }`}
+              >
+                Freeze Portion
+              </button>
+            </div>
+
+            {freezeMode === 'full' ? (
+              <div className="p-3 bg-cyan-50 rounded-lg border border-cyan-100 mb-4">
+                <p className="text-sm text-cyan-700">
+                  The entire bag will be frozen and removed from your rotation. Days-off-roast pauses while frozen.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3 mb-4">
+                <div className="p-3 bg-cyan-50 rounded-lg border border-cyan-100">
+                  <p className="text-sm text-cyan-700">
+                    Freeze a portion while keeping this bag in your rotation. You can thaw it later.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm text-coffee-500 mb-1">Portion to freeze (grams)</label>
+                  <input
+                    type="number"
+                    value={portionGrams}
+                    onChange={(e) => setPortionGrams(Math.max(1, parseInt(e.target.value) || 1))}
+                    min={1}
+                    className="w-full px-4 py-2 border border-coffee-200 rounded-lg text-center text-lg font-bold focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setFreezeModalBagId(null)}
+                className="flex-1 py-3 rounded-xl font-semibold bg-coffee-100 text-coffee-700 hover:bg-coffee-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (freezeMode === 'full') {
+                    freezeBagMutation.mutate(freezeModalBagId);
+                    setFreezeModalBagId(null);
+                  } else {
+                    freezePartialMutation.mutate({ bagId: freezeModalBagId, grams: portionGrams });
+                  }
+                }}
+                disabled={freezeBagMutation.isPending || freezePartialMutation.isPending}
+                className="flex-1 py-3 rounded-xl font-semibold bg-cyan-600 text-white hover:bg-cyan-700 transition-colors disabled:opacity-50"
+              >
+                {(freezeBagMutation.isPending || freezePartialMutation.isPending) ? 'Freezing...' : '❄ Freeze'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Dialogs */}
       <ConfirmDialog
         isOpen={confirmState.type === 'deleteBean'}
@@ -940,7 +1076,7 @@ export default function BeanProfilePage() {
       <ConfirmDialog
         isOpen={confirmState.type === 'freezeBag'}
         title="Freeze Bag?"
-        message={`This will freeze this bag (${confirmState.targetName}). The days-off-roast clock will pause while frozen, and the bag will be removed from your rotation.`}
+        message={`This will freeze this bag (${confirmState.targetName}). The days-off-roast clock will pause while frozen and the bag will be removed from your rotation.`}
         confirmLabel="❄ Freeze"
         variant="warning"
         onConfirm={handleConfirm}
@@ -950,9 +1086,20 @@ export default function BeanProfilePage() {
 
       <ConfirmDialog
         isOpen={confirmState.type === 'unfreezeBag'}
-        title="Unfreeze Bag?"
-        message={`This will thaw this bag (${confirmState.targetName}) and add it to your rotation as open. The frozen time will be accounted for in the days-off-roast calculation.`}
-        confirmLabel="🔥 Unfreeze"
+        title="Thaw Bag?"
+        message={`This will thaw this bag (${confirmState.targetName}) and add it back to your rotation. The frozen time will be accounted for in the days-off-roast calculation.`}
+        confirmLabel="🔥 Thaw"
+        variant="warning"
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmState({ type: null })}
+        isLoading={isConfirmLoading}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmState.type === 'thawPortion'}
+        title="Thaw Portion?"
+        message={`This will thaw the frozen portion of this bag (${confirmState.targetName}). The frozen time will be accounted for in the days-off-roast calculation.`}
+        confirmLabel="🔥 Thaw Portion"
         variant="warning"
         onConfirm={handleConfirm}
         onCancel={() => setConfirmState({ type: null })}
