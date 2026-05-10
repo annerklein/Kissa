@@ -38,7 +38,7 @@ export async function analyticsRoutes(server: FastifyInstance) {
 
       for (const bag of bean.bags) {
         for (const brew of bag.brewLogs) {
-          if (brew.computedScore !== null) {
+          if (brew.computedScore !== null && brew.computedScore > 0) {
             current.scores.push(brew.computedScore);
           }
         }
@@ -94,7 +94,7 @@ export async function analyticsRoutes(server: FastifyInstance) {
         const scores = bean.bags.flatMap((bag) =>
           bag.brewLogs
             .map((b) => b.computedScore)
-            .filter((s): s is number => s !== null)
+            .filter((s): s is number => s !== null && s > 0)
         );
 
         return {
@@ -171,7 +171,7 @@ export async function analyticsRoutes(server: FastifyInstance) {
     // --- Summary ---
     const scores = brews
       .map((b) => b.computedScore)
-      .filter((s): s is number => s !== null);
+      .filter((s): s is number => s !== null && s > 0);
     const totalBrews = brews.length;
     const avgScore = scores.length > 0
       ? scores.reduce((a, b) => a + b, 0) / scores.length
@@ -211,10 +211,8 @@ export async function analyticsRoutes(server: FastifyInstance) {
         displayName: brew.method.displayName,
         scores: [],
       };
-      if (brew.computedScore !== null) {
+      if (brew.computedScore !== null && brew.computedScore > 0) {
         current.scores.push(brew.computedScore);
-      } else {
-        // Count unrated brews too — push nothing but ensure entry exists
       }
       if (!methodMap.has(key)) methodMap.set(key, current);
     }
@@ -243,7 +241,7 @@ export async function analyticsRoutes(server: FastifyInstance) {
         roasterName: brew.bag.bean.roaster?.name || 'Unknown',
         scores: [],
       };
-      if (brew.computedScore !== null) {
+      if (brew.computedScore !== null && brew.computedScore > 0) {
         current.scores.push(brew.computedScore);
       }
       if (!beanMap.has(beanId)) beanMap.set(beanId, current);
@@ -329,7 +327,7 @@ export async function analyticsRoutes(server: FastifyInstance) {
         const entry = dayMap.get(key);
         if (entry) {
           entry.count++;
-          if (brew.computedScore !== null) entry.scores.push(brew.computedScore);
+          if (brew.computedScore !== null && brew.computedScore > 0) entry.scores.push(brew.computedScore);
         }
       }
       for (const [label, data] of dayMap) {
@@ -361,7 +359,7 @@ export async function analyticsRoutes(server: FastifyInstance) {
         const entry = weekMap.get(key);
         if (entry) {
           entry.count++;
-          if (brew.computedScore !== null) entry.scores.push(brew.computedScore);
+          if (brew.computedScore !== null && brew.computedScore > 0) entry.scores.push(brew.computedScore);
         }
       }
       for (const [label, data] of weekMap) {
@@ -382,7 +380,7 @@ export async function analyticsRoutes(server: FastifyInstance) {
         const key = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
         const current = monthMap.get(key) || { count: 0, scores: [] };
         current.count++;
-        if (brew.computedScore !== null) current.scores.push(brew.computedScore);
+        if (brew.computedScore !== null && brew.computedScore > 0) current.scores.push(brew.computedScore);
         if (!monthMap.has(key)) monthMap.set(key, current);
       }
       for (const [label, data] of monthMap) {
@@ -439,7 +437,7 @@ export async function analyticsRoutes(server: FastifyInstance) {
       const scores = bean.bags.flatMap((bag) =>
         bag.brewLogs
           .map((b) => b.computedScore)
-          .filter((s): s is number => s !== null)
+          .filter((s): s is number => s !== null && s > 0)
       );
 
       return {

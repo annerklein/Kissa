@@ -37,11 +37,10 @@ const statusColors: Record<string, string> = {
 export function BagCard({ bag, onSelect, onMarkFinished, onDelete, onFreeze, onUnfreeze, onThawPortion, showActions = false }: BagCardProps) {
   const brewLogs = bag.brewLogs || [];
   const brewCount = brewLogs.length;
+  const ratedBrews = brewLogs.filter((b) => b.computedScore !== null && b.computedScore > 0);
   const avgScore =
-    brewCount > 0
-      ? brewLogs
-          .filter((b) => b.computedScore !== null)
-          .reduce((sum, b) => sum + (b.computedScore || 0), 0) / brewCount
+    ratedBrews.length > 0
+      ? ratedBrews.reduce((sum, b) => sum + (b.computedScore || 0), 0) / ratedBrews.length
       : null;
 
   const isFrozen = bag.status === 'FROZEN';
