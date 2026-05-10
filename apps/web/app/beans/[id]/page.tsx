@@ -108,23 +108,33 @@ async function freezeBagPartial(id: string, grams: number) {
   return res.json();
 }
 
-async function unfreezeBag(id: string) {
+async function thawBagFull(id: string) {
   const res = await fetch(`${API_URL}/api/bags/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: 'OPEN', frozenGrams: null }),
+    body: JSON.stringify({ status: 'OPEN' }),
   });
-  if (!res.ok) throw new Error('Failed to unfreeze bag');
+  if (!res.ok) throw new Error('Failed to thaw bag');
   return res.json();
 }
 
-async function thawPortion(id: string) {
+async function thawBagKeepPortion(id: string, keepGrams: number) {
+  const res = await fetch(`${API_URL}/api/bags/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'OPEN', frozenGrams: keepGrams }),
+  });
+  if (!res.ok) throw new Error('Failed to thaw portion');
+  return res.json();
+}
+
+async function clearFrozenPortion(id: string) {
   const res = await fetch(`${API_URL}/api/bags/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ frozenGrams: null }),
   });
-  if (!res.ok) throw new Error('Failed to thaw portion');
+  if (!res.ok) throw new Error('Failed to clear frozen portion');
   return res.json();
 }
 
@@ -174,6 +184,9 @@ export default function BeanProfilePage() {
   const [freezeModalBagId, setFreezeModalBagId] = useState<string | null>(null);
   const [freezeMode, setFreezeMode] = useState<'full' | 'portion'>('full');
   const [portionGrams, setPortionGrams] = useState<number>(100);
+  const [thawModalBagId, setThawModalBagId] = useState<string | null>(null);
+  const [thawMode, setThawMode] = useState<'full' | 'portion'>('full');
+  const [thawKeepGrams, setThawKeepGrams] = useState<number>(100);
   
   // Edit bean form state
   const [editName, setEditName] = useState('');
@@ -244,8 +257,26 @@ export default function BeanProfilePage() {
     },
   });
 
-  const unfreezeBagMutation = useMutation({
-    mutationFn: (bagId: string) => unfreezeBag(bagId),
+  const thawFullMutation = useMutation({
+    mutationFn: (bagId: string) => thawBagFull(bagId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bean', beanId] });
+      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
+      setThawModalBagId(null);
+    },
+  });
+
+  const thawKeepPortionMutation = useMutation({
+    mutationFn: ({ bagId, keepGrams }: { bagId: string; keepGrams: number }) => thawBagKeepPortion(bagId, keepGrams),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bean', beanId] });
+      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
+      setThawModalBagId(null);
+    },
+  });
+
+  const clearPortionMutation = useMutation({
+    mutationFn: (bagId: string) => clearFrozenPortion(bagId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bean', beanId] });
       queryClient.invalidateQueries({ queryKey: ['available-beans'] });
@@ -259,15 +290,6 @@ export default function BeanProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['bean', beanId] });
       queryClient.invalidateQueries({ queryKey: ['available-beans'] });
       setFreezeModalBagId(null);
-    },
-  });
-
-  const thawPortionMutation = useMutation({
-    mutationFn: (bagId: string) => thawPortion(bagId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bean', beanId] });
-      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
-      setConfirmState({ type: null });
     },
   });
 
@@ -353,10 +375,10 @@ export default function BeanProfilePage() {
         if (confirmState.targetId) freezeBagMutation.mutate(confirmState.targetId);
         break;
       case 'unfreezeBag':
-        if (confirmState.targetId) unfreezeBagMutation.mutate(confirmState.targetId);
+        if (confirmState.targetId) thawFullMutation.mutate(confirmState.targetId);
         break;
       case 'thawPortion':
-        if (confirmState.targetId) thawPortionMutation.mutate(confirmState.targetId);
+        if (confirmState.targetId) clearPortionMutation.mutate(confirmState.targetId);
         break;
     }
   };
@@ -367,8 +389,8 @@ export default function BeanProfilePage() {
     finishBagMutation.isPending || 
     deleteBrewMutation.isPending ||
     freezeBagMutation.isPending ||
-    unfreezeBagMutation.isPending ||
-    thawPortionMutation.isPending;
+    thawFullMutation.isPending ||
+    clearPortionMutation.isPending;
 
   if (isLoading) {
     return (
@@ -740,11 +762,11 @@ export default function BeanProfilePage() {
                   setFreezeMode('full');
                   setPortionGrams(bag.bagSizeGrams ? Math.round(bag.bagSizeGrams / 2) : 100);
                 }}
-                onUnfreeze={() => setConfirmState({
-                  type: 'unfreezeBag',
-                  targetId: bag.id,
-                  targetName: formatRoastDate(new Date(bag.roastDate))
-                })}
+                onUnfreeze={() => {
+                  setThawModalBagId(bag.id);
+                  setThawMode('full');
+                  setThawKeepGrams(bag.bagSizeGrams ? Math.round(bag.bagSizeGrams / 2) : 100);
+                }}
                 onThawPortion={() => setConfirmState({
                   type: 'thawPortion',
                   targetId: bag.id,
@@ -1084,22 +1106,96 @@ export default function BeanProfilePage() {
         isLoading={isConfirmLoading}
       />
 
-      <ConfirmDialog
-        isOpen={confirmState.type === 'unfreezeBag'}
-        title="Thaw Bag?"
-        message={`This will thaw this bag (${confirmState.targetName}) and add it back to your rotation. The frozen time will be accounted for in the days-off-roast calculation.`}
-        confirmLabel="🔥 Thaw"
-        variant="warning"
-        onConfirm={handleConfirm}
-        onCancel={() => setConfirmState({ type: null })}
-        isLoading={isConfirmLoading}
-      />
+      {/* Thaw Modal */}
+      {thawModalBagId && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-xl font-bold text-coffee-900 mb-1 text-center">
+              🔥 Thaw
+            </h3>
+            <p className="text-sm text-coffee-500 text-center mb-4">
+              {bean.name}
+            </p>
+
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setThawMode('full')}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  thawMode === 'full'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                Thaw All
+              </button>
+              <button
+                onClick={() => setThawMode('portion')}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  thawMode === 'portion'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                Thaw Portion
+              </button>
+            </div>
+
+            {thawMode === 'full' ? (
+              <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 mb-4">
+                <p className="text-sm text-amber-700">
+                  The entire bag will be thawed and added back to your rotation. Frozen time will be accounted for.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3 mb-4">
+                <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
+                  <p className="text-sm text-amber-700">
+                    Thaw part of the bag. The rest stays frozen in storage.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm text-coffee-500 mb-1">Keep frozen (grams)</label>
+                  <input
+                    type="number"
+                    value={thawKeepGrams}
+                    onChange={(e) => setThawKeepGrams(Math.max(1, parseInt(e.target.value) || 1))}
+                    min={1}
+                    className="w-full px-4 py-2 border border-coffee-200 rounded-lg text-center text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setThawModalBagId(null)}
+                className="flex-1 py-3 rounded-xl font-semibold bg-coffee-100 text-coffee-700 hover:bg-coffee-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (thawMode === 'full') {
+                    thawFullMutation.mutate(thawModalBagId);
+                  } else {
+                    thawKeepPortionMutation.mutate({ bagId: thawModalBagId, keepGrams: thawKeepGrams });
+                  }
+                }}
+                disabled={thawFullMutation.isPending || thawKeepPortionMutation.isPending}
+                className="flex-1 py-3 rounded-xl font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
+              >
+                {(thawFullMutation.isPending || thawKeepPortionMutation.isPending) ? 'Thawing...' : '🔥 Thaw'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={confirmState.type === 'thawPortion'}
-        title="Thaw Portion?"
-        message={`This will thaw the frozen portion of this bag (${confirmState.targetName}). The frozen time will be accounted for in the days-off-roast calculation.`}
-        confirmLabel="🔥 Thaw Portion"
+        title="Remove Frozen Portion?"
+        message={`This will remove the frozen portion marker from this bag (${confirmState.targetName}).`}
+        confirmLabel="🔥 Clear Portion"
         variant="warning"
         onConfirm={handleConfirm}
         onCancel={() => setConfirmState({ type: null })}

@@ -275,7 +275,7 @@ describe('Bags API', () => {
   });
 
   describe('Partial freeze (freeze portion)', () => {
-    it('freezes a portion of a bag while keeping it OPEN and available', async () => {
+    it('freezes a portion of a bag while keeping it OPEN and available (no frozenAt)', async () => {
       const bag = await createBag(app, bean.id);
       const res = await app.inject({
         method: 'PATCH',
@@ -287,19 +287,18 @@ describe('Bags API', () => {
       expect(body.status).toBe('OPEN');
       expect(body.isAvailable).toBe(true);
       expect(body.frozenGrams).toBe(125);
-      expect(body.frozenAt).toBeTruthy();
+      // Partial freeze does NOT set frozenAt — aging clock keeps ticking
+      expect(body.frozenAt).toBeNull();
     });
 
-    it('thaws a frozen portion by setting frozenGrams to null', async () => {
+    it('clears frozen portion by setting frozenGrams to null (no time calculation)', async () => {
       const bag = await createBag(app, bean.id);
-      // Freeze a portion
       await app.inject({
         method: 'PATCH',
         url: `/api/bags/${bag.id}`,
         payload: { frozenGrams: 100 },
       });
 
-      // Thaw the portion
       const res = await app.inject({
         method: 'PATCH',
         url: `/api/bags/${bag.id}`,
@@ -308,21 +307,19 @@ describe('Bags API', () => {
       expect(res.statusCode).toBe(200);
       const body = json(res);
       expect(body.frozenGrams).toBeNull();
-      expect(body.frozenAt).toBeNull();
-      expect(body.totalFrozenDays).toBeGreaterThanOrEqual(0);
       expect(body.status).toBe('OPEN');
+      // No time calculation for partial freeze/clear
+      expect(body.totalFrozenDays).toBe(0);
     });
 
-    it('full freeze clears any frozenGrams', async () => {
+    it('full freeze clears any frozenGrams and sets frozenAt', async () => {
       const bag = await createBag(app, bean.id);
-      // Partially freeze
       await app.inject({
         method: 'PATCH',
         url: `/api/bags/${bag.id}`,
         payload: { frozenGrams: 50 },
       });
 
-      // Now full freeze
       const res = await app.inject({
         method: 'PATCH',
         url: `/api/bags/${bag.id}`,
@@ -332,10 +329,11 @@ describe('Bags API', () => {
       const body = json(res);
       expect(body.status).toBe('FROZEN');
       expect(body.frozenGrams).toBeNull();
+      expect(body.frozenAt).toBeTruthy();
       expect(body.isAvailable).toBe(false);
     });
 
-    it('thawing a full freeze also clears frozenGrams', async () => {
+    it('thawing a full freeze clears frozenGrams and frozenAt', async () => {
       const bag = await createBag(app, bean.id);
       await app.inject({
         method: 'PATCH',
@@ -346,7 +344,7 @@ describe('Bags API', () => {
       const res = await app.inject({
         method: 'PATCH',
         url: `/api/bags/${bag.id}`,
-        payload: { status: 'OPEN', frozenGrams: null },
+        payload: { status: 'OPEN' },
       });
       expect(res.statusCode).toBe(200);
       const body = json(res);
@@ -356,18 +354,41 @@ describe('Bags API', () => {
       expect(body.isAvailable).toBe(true);
     });
 
+    it('thaw portion from FROZEN: sets frozenGrams for remainder, clears frozenAt', async () => {
+      const bag = await createBag(app, bean.id);
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'FROZEN' },
+      });
+
+      // Thaw portion: keep 150g frozen
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'OPEN', frozenGrams: 150 },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = json(res);
+      expect(body.status).toBe('OPEN');
+      expect(body.frozenGrams).toBe(150);
+      expect(body.frozenAt).toBeNull();
+      expect(body.isAvailable).toBe(true);
+      expect(body.totalFrozenDays).toBeGreaterThanOrEqual(0);
+    });
+
     it('bag remains a single entity through multiple freeze/thaw cycles', async () => {
       const bag = await createBag(app, bean.id);
       const originalId = bag.id;
 
-      // Partial freeze
+      // Partial freeze (just a marker, no clock effect)
       await app.inject({
         method: 'PATCH',
         url: `/api/bags/${bag.id}`,
         payload: { frozenGrams: 100 },
       });
 
-      // Thaw portion
+      // Clear portion
       await app.inject({
         method: 'PATCH',
         url: `/api/bags/${bag.id}`,
@@ -401,6 +422,38 @@ describe('Bags API', () => {
       expect(body.status).toBe('OPEN');
     });
 
+    it('freeze-thaw-refreeze counts frozen days correctly', async () => {
+      const bag = await createBag(app, bean.id);
+
+      // Full freeze
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'FROZEN' },
+      });
+
+      // Thaw (frozen for 0 days since same-day)
+      const thawRes = json(await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'OPEN' },
+      }));
+      expect(thawRes.status).toBe('OPEN');
+      expect(thawRes.frozenAt).toBeNull();
+      expect(thawRes.totalFrozenDays).toBeGreaterThanOrEqual(0);
+
+      // Immediately refreeze
+      const refreezeRes = json(await app.inject({
+        method: 'PATCH',
+        url: `/api/bags/${bag.id}`,
+        payload: { status: 'FROZEN' },
+      }));
+      expect(refreezeRes.status).toBe('FROZEN');
+      expect(refreezeRes.frozenAt).toBeTruthy();
+      // totalFrozenDays should be preserved from the thaw calculation
+      expect(refreezeRes.totalFrozenDays).toBe(thawRes.totalFrozenDays);
+    });
+
     it('partial freeze does not duplicate bags in available-beans', async () => {
       const testBean = await createBean(app, roaster.id, 'Partial Freeze Bean');
       const v60 = await getV60Method(app);
@@ -412,7 +465,6 @@ describe('Bags API', () => {
 
       const bag = await createBag(app, testBean.id, { isAvailable: true });
 
-      // Partially freeze
       await app.inject({
         method: 'PATCH',
         url: `/api/bags/${bag.id}`,
@@ -426,12 +478,10 @@ describe('Bags API', () => {
         })
       );
 
-      // Should still appear in main bags (not frozen section) since status is OPEN
       const foundInBags = res.bags.filter((b: any) => b.id === bag.id);
       expect(foundInBags.length).toBe(1);
       expect(foundInBags[0].frozenGrams).toBe(100);
 
-      // Should NOT appear in frozenBags
       const foundInFrozen = res.frozenBags.filter((b: any) => b.id === bag.id);
       expect(foundInFrozen.length).toBe(0);
     });

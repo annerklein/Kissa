@@ -30,13 +30,33 @@ async function updateGrinderSetting(newSetting: number) {
   return res.json();
 }
 
-async function unfreezeBag(bagId: string) {
+async function thawBagFull(bagId: string) {
   const res = await fetch(`${API_URL}/api/bags/${bagId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: 'OPEN', frozenGrams: null }),
+    body: JSON.stringify({ status: 'OPEN' }),
   });
-  if (!res.ok) throw new Error('Failed to unfreeze bag');
+  if (!res.ok) throw new Error('Failed to thaw bag');
+  return res.json();
+}
+
+async function thawBagKeepPortion(bagId: string, keepFrozenGrams: number) {
+  const res = await fetch(`${API_URL}/api/bags/${bagId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'OPEN', frozenGrams: keepFrozenGrams }),
+  });
+  if (!res.ok) throw new Error('Failed to thaw portion');
+  return res.json();
+}
+
+async function clearFrozenPortion(bagId: string) {
+  const res = await fetch(`${API_URL}/api/bags/${bagId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ frozenGrams: null }),
+  });
+  if (!res.ok) throw new Error('Failed to clear frozen portion');
   return res.json();
 }
 
@@ -57,16 +77,6 @@ async function freezeBagPartial(bagId: string, grams: number) {
     body: JSON.stringify({ frozenGrams: grams }),
   });
   if (!res.ok) throw new Error('Failed to freeze portion');
-  return res.json();
-}
-
-async function thawPortion(bagId: string) {
-  const res = await fetch(`${API_URL}/api/bags/${bagId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ frozenGrams: null }),
-  });
-  if (!res.ok) throw new Error('Failed to thaw portion');
   return res.json();
 }
 
@@ -94,6 +104,9 @@ export default function HomePage() {
   const [freezeModalBag, setFreezeModalBag] = useState<any>(null);
   const [freezeMode, setFreezeMode] = useState<'full' | 'portion'>('full');
   const [portionGrams, setPortionGrams] = useState<number>(100);
+  const [thawModalBag, setThawModalBag] = useState<any>(null);
+  const [thawMode, setThawMode] = useState<'full' | 'portion'>('full');
+  const [thawKeepGrams, setThawKeepGrams] = useState<number>(100);
 
   const { data: methods, isLoading: methodsLoading } = useQuery({
     queryKey: ['methods'],
@@ -121,8 +134,25 @@ export default function HomePage() {
     },
   });
 
-  const unfreezeMutation = useMutation({
-    mutationFn: unfreezeBag,
+  const thawFullMutation = useMutation({
+    mutationFn: thawBagFull,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
+      setThawModalBag(null);
+    },
+  });
+
+  const thawKeepPortionMutation = useMutation({
+    mutationFn: ({ bagId, keepGrams }: { bagId: string; keepGrams: number }) =>
+      thawBagKeepPortion(bagId, keepGrams),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
+      setThawModalBag(null);
+    },
+  });
+
+  const clearPortionMutation = useMutation({
+    mutationFn: clearFrozenPortion,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['available-beans'] });
     },
@@ -142,13 +172,6 @@ export default function HomePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['available-beans'] });
       setFreezeModalBag(null);
-    },
-  });
-
-  const thawPortionMutation = useMutation({
-    mutationFn: thawPortion,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['available-beans'] });
     },
   });
 
@@ -267,7 +290,7 @@ export default function HomePage() {
                     setFreezeMode('full');
                     setPortionGrams(targetBag?.bagSizeGrams ? Math.round(targetBag.bagSizeGrams / 2) : 100);
                   }}
-                  onThawPortion={(bagId) => thawPortionMutation.mutate(bagId)}
+                  onThawPortion={(bagId) => clearPortionMutation.mutate(bagId)}
                 />
               </div>
             ))}
@@ -297,8 +320,13 @@ export default function HomePage() {
                 <FrozenBagCard
                   key={bag.id}
                   bag={bag}
-                  onUnfreeze={(bagId) => unfreezeMutation.mutate(bagId)}
-                  isUnfreezing={unfreezeMutation.isPending}
+                  onUnfreeze={(bagId) => {
+                    const targetBag = frozenBags.find((b: any) => b.id === bagId);
+                    setThawModalBag(targetBag);
+                    setThawMode('full');
+                    setThawKeepGrams(targetBag?.bagSizeGrams ? Math.round(targetBag.bagSizeGrams / 2) : 100);
+                  }}
+                  isUnfreezing={thawFullMutation.isPending || thawKeepPortionMutation.isPending}
                 />
               ))}
             </div>
@@ -386,6 +414,91 @@ export default function HomePage() {
                 className="flex-1 py-3 rounded-xl font-semibold bg-cyan-600 text-white hover:bg-cyan-700 transition-colors disabled:opacity-50"
               >
                 {(freezeFullMutation.isPending || freezePartialMutation.isPending) ? 'Freezing...' : '❄ Freeze'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Thaw Modal */}
+      {thawModalBag && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-xl font-bold text-coffee-900 mb-1 text-center">
+              🔥 Thaw
+            </h3>
+            <p className="text-sm text-coffee-500 text-center mb-4">
+              {thawModalBag.bean.name}
+            </p>
+
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setThawMode('full')}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  thawMode === 'full'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                Thaw All
+              </button>
+              <button
+                onClick={() => setThawMode('portion')}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  thawMode === 'portion'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                Thaw Portion
+              </button>
+            </div>
+
+            {thawMode === 'full' ? (
+              <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 mb-4">
+                <p className="text-sm text-amber-700">
+                  The entire bag will be thawed and added back to your rotation. Frozen time will be accounted for.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3 mb-4">
+                <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
+                  <p className="text-sm text-amber-700">
+                    Thaw part of the bag. The rest stays frozen in storage.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm text-coffee-500 mb-1">Keep frozen (grams)</label>
+                  <input
+                    type="number"
+                    value={thawKeepGrams}
+                    onChange={(e) => setThawKeepGrams(Math.max(1, parseInt(e.target.value) || 1))}
+                    min={1}
+                    className="w-full px-4 py-2 border border-coffee-200 rounded-lg text-center text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setThawModalBag(null)}
+                className="flex-1 py-3 rounded-xl font-semibold bg-coffee-100 text-coffee-700 hover:bg-coffee-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (thawMode === 'full') {
+                    thawFullMutation.mutate(thawModalBag.id);
+                  } else {
+                    thawKeepPortionMutation.mutate({ bagId: thawModalBag.id, keepGrams: thawKeepGrams });
+                  }
+                }}
+                disabled={thawFullMutation.isPending || thawKeepPortionMutation.isPending}
+                className="flex-1 py-3 rounded-xl font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
+              >
+                {(thawFullMutation.isPending || thawKeepPortionMutation.isPending) ? 'Thawing...' : '🔥 Thaw'}
               </button>
             </div>
           </div>

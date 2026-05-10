@@ -174,12 +174,13 @@ export async function bagsRoutes(server: FastifyInstance) {
 
     const updateData: Record<string, any> = { ...body.data };
 
-    // Handle partial freeze: frozenGrams is set but NOT doing a full freeze
-    const isSettingFrozenGrams = 'frozenGrams' in (body.data as Record<string, any>) && body.data.frozenGrams !== null && body.data.frozenGrams !== undefined && (body.data.frozenGrams as number) > 0;
-    if (isSettingFrozenGrams && body.data.status !== 'FROZEN') {
-      if (!currentBag.frozenAt) {
-        updateData.frozenAt = new Date();
-      }
+    const hasFrozenGramsField = 'frozenGrams' in (body.data as Record<string, any>);
+    const isSettingFrozenGrams = hasFrozenGramsField && body.data.frozenGrams !== null && body.data.frozenGrams !== undefined && (body.data.frozenGrams as number) > 0;
+    const isClearingFrozenGrams = hasFrozenGramsField && body.data.frozenGrams === null;
+
+    // Handle partial freeze on OPEN bag: just set frozenGrams, DON'T touch frozenAt
+    // The aging clock keeps ticking — frozenGrams is only a note about stored portion
+    if (isSettingFrozenGrams && body.data.status !== 'FROZEN' && currentBag.status !== 'FROZEN') {
       if (!body.data.status) {
         updateData.status = 'OPEN';
       }
@@ -188,18 +189,8 @@ export async function bagsRoutes(server: FastifyInstance) {
       }
     }
 
-    // Handle thaw portion: frozenGrams explicitly set to null while bag has frozenGrams
-    const isClearingFrozenGrams = 'frozenGrams' in (body.data as Record<string, any>) && body.data.frozenGrams === null;
-    if (isClearingFrozenGrams && currentBag.frozenGrams && currentBag.frozenGrams > 0 && currentBag.status !== 'FROZEN') {
-      if (currentBag.frozenAt) {
-        const now = new Date();
-        const frozenDate = new Date(currentBag.frozenAt);
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const frozenDay = new Date(frozenDate.getFullYear(), frozenDate.getMonth(), frozenDate.getDate());
-        const frozenDays = Math.floor((today.getTime() - frozenDay.getTime()) / (1000 * 60 * 60 * 24));
-        updateData.totalFrozenDays = currentBag.totalFrozenDays + frozenDays;
-      }
-      updateData.frozenAt = null;
+    // Handle clearing frozenGrams on OPEN bag: just clear it, no time calculation
+    if (isClearingFrozenGrams && currentBag.status !== 'FROZEN') {
       updateData.frozenGrams = null;
     }
 
@@ -210,8 +201,9 @@ export async function bagsRoutes(server: FastifyInstance) {
       updateData.frozenGrams = null;
     }
 
-    // Handle unfreeze transition: FROZEN -> OPEN (thaw)
+    // Handle thaw transition: FROZEN -> OPEN
     if (body.data.status && body.data.status !== 'FROZEN' && currentBag.status === 'FROZEN') {
+      // Calculate days spent in this freeze cycle
       if (currentBag.frozenAt) {
         const now = new Date();
         const frozenDate = new Date(currentBag.frozenAt);
@@ -221,11 +213,16 @@ export async function bagsRoutes(server: FastifyInstance) {
         updateData.totalFrozenDays = currentBag.totalFrozenDays + frozenDays;
       }
       updateData.frozenAt = null;
-      updateData.frozenGrams = null;
-      if (body.data.status === 'OPEN' || !body.data.status) {
-        updateData.status = 'OPEN';
-        updateData.isAvailable = true;
-        updateData.openedDate = new Date();
+      updateData.status = 'OPEN';
+      updateData.isAvailable = true;
+      updateData.openedDate = new Date();
+
+      // Thaw portion from FROZEN: set frozenGrams for the remainder that stays frozen
+      // (frozenGrams passed in body means "keep this amount frozen, thaw the rest")
+      if (isSettingFrozenGrams) {
+        updateData.frozenGrams = body.data.frozenGrams;
+      } else {
+        updateData.frozenGrams = null;
       }
     }
 
