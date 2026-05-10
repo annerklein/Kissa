@@ -183,12 +183,12 @@ function BrewPageContent() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-coffee-50 via-white to-coffee-100">
       {/* Hero Header */}
-      <div className="bg-gradient-to-br from-coffee-800 to-coffee-900 text-white px-4 pt-6 pb-8 rounded-b-3xl shadow-xl">
+      <div className="bg-gradient-to-br from-coffee-800 to-coffee-900 text-white px-4 pt-5 sm:pt-6 pb-6 sm:pb-8 rounded-b-3xl shadow-xl">
         <div className="max-w-2xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
             <button
               onClick={() => router.back()}
-              className="text-coffee-300 hover:text-white transition-colors flex items-center gap-1"
+              className="text-coffee-300 hover:text-white transition-colors flex items-center gap-1 text-sm"
             >
               <span>←</span> Back
             </button>
@@ -198,16 +198,16 @@ function BrewPageContent() {
           </div>
           
           <div className="text-center">
-            <p className="text-coffee-300 text-sm font-medium">{bag.bean.roaster.name}</p>
-            <h1 className="text-3xl font-display font-bold mt-1">{bag.bean.name}</h1>
-            <div className="flex justify-center items-center gap-3 mt-3">
-              <span className="px-4 py-1.5 bg-white/20 rounded-full text-sm font-semibold tracking-wide backdrop-blur-sm">
+            <p className="text-coffee-300 text-xs sm:text-sm font-medium">{bag.bean.roaster.name}</p>
+            <h1 className="text-2xl sm:text-3xl font-display font-bold mt-1 truncate px-2">{bag.bean.name}</h1>
+            <div className="flex justify-center items-center gap-2 sm:gap-3 mt-2 sm:mt-3 flex-wrap">
+              <span className="px-3 sm:px-4 py-1 sm:py-1.5 bg-white/20 rounded-full text-xs sm:text-sm font-semibold tracking-wide backdrop-blur-sm">
                 {method.displayName}
               </span>
               {bag.tubePosition && (
-                <span className="px-3 py-1.5 bg-amber-500/30 rounded-full text-sm font-semibold tracking-wide backdrop-blur-sm flex items-center gap-1.5">
+                <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-amber-500/30 rounded-full text-xs sm:text-sm font-semibold tracking-wide backdrop-blur-sm flex items-center gap-1">
                   <span className="text-amber-200">Tube:</span>
-                  <span>{bag.tubePosition === 'LEFT' ? 'Left' : bag.tubePosition === 'MIDDLE' ? 'Middle' : 'Right'}</span>
+                  <span>{bag.tubePosition === 'LEFT' ? 'L' : bag.tubePosition === 'MIDDLE' ? 'M' : 'R'}</span>
                 </span>
               )}
             </div>
@@ -216,7 +216,7 @@ function BrewPageContent() {
       </div>
 
       {/* Content */}
-      <div className="max-w-2xl mx-auto px-4 -mt-4 pb-32">
+      <div className="max-w-2xl mx-auto px-3 sm:px-4 -mt-4 pb-36">
         {/* Grinder Card */}
         <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
           <GrinderCard

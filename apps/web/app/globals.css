@@ -29,11 +29,14 @@
 body {
   @apply bg-gradient-to-br from-coffee-50 via-white to-coffee-100 text-coffee-900 min-h-screen;
   font-family: var(--font-bricolage), system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Custom scrollbar */
@@ -115,12 +118,12 @@ html {
 
 @layer components {
   .card {
-    @apply bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-coffee-200/30 p-5 border border-white/50;
+    @apply bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-coffee-200/30 p-4 sm:p-5 border border-white/50;
     @apply transition-all duration-300 hover:shadow-xl hover:shadow-coffee-300/30;
   }
   
   .card-flat {
-    @apply bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-coffee-100/50;
+    @apply bg-white/60 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-coffee-100/50;
   }
   
   .card-highlight {
@@ -128,7 +131,7 @@ html {
   }
   
   .btn-primary {
-    @apply bg-gradient-to-r from-coffee-800 to-coffee-900 text-white px-6 py-3 rounded-xl font-medium;
+    @apply bg-gradient-to-r from-coffee-800 to-coffee-900 text-white px-5 sm:px-6 py-3 rounded-xl font-medium;
     @apply shadow-lg shadow-coffee-800/30 hover:shadow-xl hover:shadow-coffee-800/40;
     @apply transition-all duration-300 hover:scale-[1.02] active:scale-[0.98];
     @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
@@ -180,8 +183,9 @@ html {
   }
   
   .floating-action {
-    @apply fixed bottom-20 left-0 right-0 p-4 bg-gradient-to-t from-white via-white/95 to-transparent;
+    @apply fixed bottom-0 left-0 right-0 px-4 pt-4 pb-6 bg-gradient-to-t from-white via-white/95 to-transparent;
     @apply pointer-events-none;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
   }
   
   .floating-action > * {
@@ -194,6 +198,20 @@ html {
   .safe-area-pb {
     padding-bottom: env(safe-area-inset-bottom);
   }
+}
+
+/* Hide scrollbar for horizontal carousels on mobile */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Prevent text overflow on small screens */
+.text-balance {
+  text-wrap: balance;
 }
 
 /* Loading shimmer effect */

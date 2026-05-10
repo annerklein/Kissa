@@ -101,7 +101,7 @@ export default function RoastersPage() {
   }
 
   return (
-    <main className="min-h-screen p-4 max-w-2xl mx-auto pb-28">
+    <main className="min-h-screen px-3 sm:px-4 pt-4 max-w-2xl mx-auto pb-24">
       {/* Header */}
       <header className="mb-6 animate-fade-in flex flex-col items-center text-center">
         <div className="mb-4">
@@ -109,7 +109,7 @@ export default function RoastersPage() {
         </div>
         <div>
           <h1 className="text-2xl font-display font-bold text-gradient">Roasters</h1>
-          <p className="text-coffee-600 mt-1">{roasters?.length || 0} roasters</p>
+          <p className="text-coffee-600 mt-1 text-sm sm:text-base">{roasters?.length || 0} roasters</p>
           <button
             onClick={() => setShowAddModal(true)}
             className="btn-primary mt-4"
@@ -136,51 +136,51 @@ export default function RoastersPage() {
               className="card animate-slide-up hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
               style={{ animationDelay: `${index * 0.05}s` }}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-3 sm:gap-4">
                 {/* Clickable area: Logo + Info */}
-                <Link href={`/roasters/${roaster.id}`} className="flex items-start gap-4 flex-1 min-w-0">
+                <Link href={`/roasters/${roaster.id}`} className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
                   {/* Logo */}
-                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-coffee-100 to-coffee-200 flex items-center justify-center flex-shrink-0 overflow-hidden p-1.5">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-coffee-100 to-coffee-200 flex items-center justify-center flex-shrink-0 overflow-hidden p-1 sm:p-1.5">
                     {roaster.logoUrl ? (
                       <img src={roaster.logoUrl} alt={roaster.name} className="w-full h-full object-contain" />
                     ) : (
-                      <span className="text-2xl">☕</span>
+                      <span className="text-xl sm:text-2xl">☕</span>
                     )}
                   </div>
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-display font-bold text-lg text-coffee-900 truncate">
+                    <h3 className="font-display font-bold text-base sm:text-lg text-coffee-900 truncate">
                       {roaster.name}
                     </h3>
                     
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1">
                       {roaster.country && (
-                        <span className="badge-primary text-xs">
+                        <span className="badge-primary text-[10px] sm:text-xs">
                           <CountryFlag country={roaster.country} size="sm" showName={true} />
                         </span>
                       )}
                       {roaster._count && (
-                        <span className="badge bg-coffee-100 text-coffee-600 text-xs">
+                        <span className="badge bg-coffee-100 text-coffee-600 text-[10px] sm:text-xs">
                           {roaster._count.beans} bean{roaster._count.beans !== 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
 
                     {roaster.notes && (
-                      <p className="text-sm text-coffee-500 mt-2 line-clamp-2">{roaster.notes}</p>
+                      <p className="text-xs sm:text-sm text-coffee-500 mt-1.5 sm:mt-2 line-clamp-1 sm:line-clamp-2">{roaster.notes}</p>
                     )}
                   </div>
                 </Link>
 
                 {/* Actions */}
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                   {roaster.website && (
                     <a
                       href={roaster.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="p-1.5 sm:p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Website"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -189,14 +189,14 @@ export default function RoastersPage() {
                   )}
                   <button
                     onClick={() => setEditingRoaster(roaster)}
-                    className="p-2 text-coffee-500 hover:bg-coffee-100 rounded-lg transition-colors"
+                    className="p-1.5 sm:p-2 text-coffee-500 hover:bg-coffee-100 rounded-lg transition-colors"
                     title="Edit"
                   >
                     ✏️
                   </button>
                   <button
                     onClick={() => setConfirmDelete(roaster)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-1.5 sm:p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     title="Delete"
                   >
                     🗑

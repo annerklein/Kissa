@@ -182,21 +182,21 @@ function RatePageContent() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-coffee-50 via-white to-coffee-100">
       {/* Header */}
-      <div className="bg-gradient-to-br from-coffee-800 to-coffee-900 text-white px-4 pt-6 pb-8 rounded-b-3xl shadow-xl">
+      <div className="bg-gradient-to-br from-coffee-800 to-coffee-900 text-white px-4 pt-5 sm:pt-6 pb-6 sm:pb-8 rounded-b-3xl shadow-xl">
         <div className="max-w-2xl mx-auto flex flex-col items-center text-center">
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <Logo size="sm" />
           </div>
           <div>
-            <p className="text-coffee-300 text-sm">{brew.bag?.bean?.roaster?.name}</p>
-            <h1 className="text-3xl font-display font-bold mt-1">Rate your brew</h1>
-            <p className="text-coffee-300 mt-2 font-medium">{brew.bag?.bean?.name}</p>
+            <p className="text-coffee-300 text-xs sm:text-sm">{brew.bag?.bean?.roaster?.name}</p>
+            <h1 className="text-2xl sm:text-3xl font-display font-bold mt-1">Rate your brew</h1>
+            <p className="text-coffee-300 mt-1.5 sm:mt-2 font-medium text-sm sm:text-base truncate max-w-[250px] sm:max-w-none">{brew.bag?.bean?.name}</p>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-2xl mx-auto px-4 -mt-4 pb-32">
+      <div className="max-w-2xl mx-auto px-3 sm:px-4 -mt-4 pb-36">
         {/* Drawdown time (V60 only) */}
         {isV60 && (
           <div className="card mb-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>

@@ -47,15 +47,15 @@ export default function AnalyticsPage() {
   });
 
   return (
-    <main className="min-h-screen p-4 max-w-4xl mx-auto pb-28">
+    <main className="min-h-screen px-3 sm:px-4 pt-4 max-w-4xl mx-auto pb-24">
       {/* Header */}
-      <header className="mb-6 animate-fade-in flex flex-col items-center text-center">
-        <div className="mb-4">
+      <header className="mb-5 sm:mb-6 animate-fade-in flex flex-col items-center text-center">
+        <div className="mb-3 sm:mb-4">
           <Logo size="md" />
         </div>
         <div>
-          <h1 className="text-3xl font-display font-bold text-gradient">Explore</h1>
-          <p className="text-coffee-600 mt-1">Your coffee journey in numbers</p>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-gradient">Explore</h1>
+          <p className="text-coffee-600 mt-1 text-sm sm:text-base">Your coffee journey in numbers</p>
         </div>
       </header>
 

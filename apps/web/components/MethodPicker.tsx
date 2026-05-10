@@ -184,7 +184,7 @@ export function MethodPicker({ methods, selectedId, onSelect }: MethodPickerProp
           onSelect(method.id);
           setShowOtherMethods(false);
         }}
-        className={`relative flex flex-col items-center justify-center p-4 rounded-2xl min-w-[100px] transition-all duration-300 ${
+        className={`relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl min-w-[85px] sm:min-w-[100px] transition-all duration-300 ${
           isSelected
             ? `bg-gradient-to-br ${config.color} text-white shadow-xl scale-105`
             : `bg-gradient-to-br ${config.gradient} text-coffee-700 border border-coffee-100 hover:border-coffee-200 hover:shadow-md`
@@ -194,12 +194,12 @@ export function MethodPicker({ methods, selectedId, onSelect }: MethodPickerProp
           <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${config.color} opacity-30 blur-xl -z-10`} />
         )}
         
-        <div className={`w-10 h-10 mb-2 transition-transform duration-300 ${
+        <div className={`w-8 h-8 sm:w-10 sm:h-10 mb-1.5 sm:mb-2 transition-transform duration-300 ${
           isSelected ? 'scale-110' : ''
         }`}>
           {config.icon}
         </div>
-        <span className={`text-sm font-semibold ${
+        <span className={`text-xs sm:text-sm font-semibold ${
           isSelected ? 'text-white' : 'text-coffee-800'
         }`}>
           {method.displayName}
@@ -219,7 +219,7 @@ export function MethodPicker({ methods, selectedId, onSelect }: MethodPickerProp
         {otherMethods.length > 0 && (
           <button
             onClick={() => setShowOtherMethods(!showOtherMethods)}
-            className={`relative flex flex-col items-center justify-center p-4 rounded-2xl min-w-[100px] transition-all duration-300 ${
+            className={`relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl min-w-[85px] sm:min-w-[100px] transition-all duration-300 ${
               isOtherSelected
                 ? 'bg-gradient-to-br from-violet-600 to-purple-700 text-white shadow-xl scale-105'
                 : 'bg-gradient-to-br from-violet-50 to-purple-50 text-coffee-700 border border-coffee-100 hover:border-coffee-200 hover:shadow-md'
@@ -229,12 +229,12 @@ export function MethodPicker({ methods, selectedId, onSelect }: MethodPickerProp
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 opacity-30 blur-xl -z-10" />
             )}
             
-            <div className={`w-10 h-10 mb-2 transition-transform duration-300 ${
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 mb-1.5 sm:mb-2 transition-transform duration-300 ${
               isOtherSelected || showOtherMethods ? 'scale-110' : ''
             }`}>
               <OtherMethodsIcon />
             </div>
-            <span className={`text-sm font-semibold ${
+            <span className={`text-xs sm:text-sm font-semibold ${
               isOtherSelected ? 'text-white' : 'text-coffee-800'
             }`}>
               {selectedOtherMethod ? selectedOtherMethod.displayName : 'Other'}

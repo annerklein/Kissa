@@ -69,7 +69,7 @@ export function AvailableBeanCard({ bag, methodId, onTubePositionChange, onFreez
             </p>
             
             {/* Bean name */}
-            <h3 className="font-display font-bold text-xl text-coffee-900 truncate group-hover:text-gradient transition-colors">
+            <h3 className="font-display font-bold text-lg sm:text-xl text-coffee-900 truncate group-hover:text-gradient transition-colors">
               {bean.name}
             </h3>
             
@@ -157,8 +157,8 @@ export function AvailableBeanCard({ bag, methodId, onTubePositionChange, onFreez
       {/* Footer: Tube position + Actions */}
       <div className="mt-3 pt-3 border-t border-coffee-100/50 flex items-center justify-between">
         {/* Tube position inline selector */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-coffee-400 uppercase tracking-wide mr-0.5">Tube</span>
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] sm:text-[10px] text-coffee-400 uppercase tracking-wide mr-0.5">Tube</span>
           {TUBE_POSITIONS.map((pos) => {
             const isActive = bag.tubePosition === pos;
             return (
@@ -171,7 +171,7 @@ export function AvailableBeanCard({ bag, methodId, onTubePositionChange, onFreez
                     onTubePositionChange(bag.id, isActive ? null : pos);
                   }
                 }}
-                className={`w-7 h-7 rounded-md text-xs font-semibold transition-all ${
+                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-md text-[10px] sm:text-xs font-semibold transition-all ${
                   isActive
                     ? 'bg-gradient-to-b from-amber-400 to-amber-500 text-white shadow-sm scale-110'
                     : 'bg-coffee-100 text-coffee-400 hover:bg-coffee-200 hover:text-coffee-600'

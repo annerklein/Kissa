@@ -187,7 +187,7 @@ export default function HomePage() {
   const frozenBags = data?.frozenBags || [];
 
   return (
-    <main className="min-h-screen p-4 max-w-2xl mx-auto pb-28">
+    <main className="min-h-screen px-3 sm:px-4 pt-4 max-w-2xl mx-auto pb-24">
       {/* Header with Logo */}
       <header className="mb-4 animate-fade-in flex justify-center">
         <Logo size="md" />

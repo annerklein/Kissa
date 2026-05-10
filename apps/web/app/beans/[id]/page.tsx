@@ -391,7 +391,7 @@ export default function BeanProfilePage() {
     : [];
 
   return (
-    <main className="min-h-screen p-4 max-w-2xl mx-auto pb-24">
+    <main className="min-h-screen px-3 sm:px-4 pt-4 max-w-2xl mx-auto pb-24">
       {/* Header */}
       <header className="mb-6">
         <div className="flex justify-between items-start">

@@ -63,7 +63,7 @@ export function Navigation() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex-1 flex flex-col items-center py-3 transition-all duration-200 ${
+                className={`flex-1 flex flex-col items-center py-2.5 sm:py-3 transition-all duration-200 ${
                   isActive 
                     ? 'text-coffee-900' 
                     : 'text-coffee-400 hover:text-coffee-600'
@@ -75,13 +75,13 @@ export function Navigation() {
                   {item.icon === 'roaster' ? (
                     <RoasterIcon active={isActive} />
                   ) : (
-                    <span className="text-2xl">{isActive ? item.activeIcon : item.icon}</span>
+                    <span className="text-xl sm:text-2xl">{isActive ? item.activeIcon : item.icon}</span>
                   )}
                   {isActive && (
                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-coffee-800" />
                   )}
                 </div>
-                <span className={`text-xs mt-1 font-medium ${
+                <span className={`text-[10px] sm:text-xs mt-0.5 sm:mt-1 font-medium ${
                   isActive ? 'text-coffee-800' : ''
                 }`}>
                   {item.label}

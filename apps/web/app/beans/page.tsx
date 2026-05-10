@@ -45,16 +45,16 @@ export default function BeansPage() {
   }
 
   return (
-    <main className="min-h-screen p-4 max-w-2xl mx-auto pb-28">
+    <main className="min-h-screen px-3 sm:px-4 pt-4 max-w-2xl mx-auto pb-24">
       {/* Header */}
-      <header className="mb-8 animate-fade-in flex flex-col items-center text-center">
-        <div className="mb-6">
+      <header className="mb-6 sm:mb-8 animate-fade-in flex flex-col items-center text-center">
+        <div className="mb-4 sm:mb-6">
           <Logo size="md" />
         </div>
         <div>
-          <h1 className="text-3xl font-display font-bold text-gradient">Your Beans</h1>
-          <p className="text-coffee-600 mt-1">{beans?.length || 0} coffee{beans?.length !== 1 ? 's' : ''} tracked</p>
-          <div className="mt-4">
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-gradient">Your Beans</h1>
+          <p className="text-coffee-600 mt-1 text-sm sm:text-base">{beans?.length || 0} coffee{beans?.length !== 1 ? 's' : ''} tracked</p>
+          <div className="mt-3 sm:mt-4">
             <Link href="/beans/new" className="btn-primary inline-block">
               + Add Bean
             </Link>
