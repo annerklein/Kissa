@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../db/client.js';
-import { BrewLogCreateSchema, BrewLogRatingSchema, computeSmartScore } from '@kissa/shared';
+import { BrewLogCreateSchema, BrewLogRatingSchema, computeSmartScore, computeEffectiveDaysOffRoast } from '@kissa/shared';
 import { generateSuggestion } from '../recommendation/engine.js';
 
 export async function brewsRoutes(server: FastifyInstance) {
@@ -184,22 +184,33 @@ export async function brewsRoutes(server: FastifyInstance) {
       }
     }
 
+    // Fetch bag for gram tracking and days-off-roast calculation
+    const bag = await prisma.bag.findUnique({ where: { id: rest.bagId } });
+
     // Deduct dose from bag's remainingGrams if tracked
-    if (parameters?.dose) {
-      const bag = await prisma.bag.findUnique({ where: { id: rest.bagId } });
-      if (bag?.remainingGrams !== null && bag?.remainingGrams !== undefined) {
-        const newRemaining = Math.max(0, bag.remainingGrams - Math.round(parameters.dose));
-        await prisma.bag.update({
-          where: { id: rest.bagId },
-          data: { remainingGrams: newRemaining },
-        });
-      }
+    if (parameters?.dose && bag?.remainingGrams !== null && bag?.remainingGrams !== undefined) {
+      const newRemaining = Math.max(0, bag.remainingGrams - Math.round(parameters.dose));
+      await prisma.bag.update({
+        where: { id: rest.bagId },
+        data: { remainingGrams: newRemaining },
+      });
+    }
+
+    // Compute effective days off roast at brew time
+    let daysOffRoast: number | null = null;
+    if (bag?.roastDate) {
+      daysOffRoast = computeEffectiveDaysOffRoast(
+        new Date(bag.roastDate),
+        bag.totalFrozenDays || 0,
+        bag.status === 'FROZEN' ? bag.frozenAt : null,
+      );
     }
 
     const brew = await prisma.brewLog.create({
       data: {
         ...rest,
         parameters: parameters ? JSON.stringify(parameters) : null,
+        daysOffRoast,
       },
       include: {
         bag: {

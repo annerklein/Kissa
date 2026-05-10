@@ -162,6 +162,7 @@ model BrewLog {
   computedScore      Float?
   tastingNotesActual String?  // JSON array of tasting notes user detected
   notes              String?  // Freeform notes
+  daysOffRoast       Int?     // Effective days off roast at brew time (accounts for freeze time)
   
   // Suggestion tracking
   suggestionShown    String?  // JSON: what suggestion was shown

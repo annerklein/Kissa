@@ -394,6 +394,56 @@ export async function analyticsRoutes(server: FastifyInstance) {
       }
     }
 
+    // --- Days Off Roast Stats ---
+    const brewsWithDOR = brews.filter((b) => b.daysOffRoast !== null && b.daysOffRoast !== undefined);
+    const ratedBrewsWithDOR = brewsWithDOR.filter((b) => b.computedScore !== null && b.computedScore > 0);
+
+    const avgDaysOffRoast = brewsWithDOR.length > 0
+      ? Math.round(brewsWithDOR.reduce((sum, b) => sum + (b.daysOffRoast || 0), 0) / brewsWithDOR.length)
+      : null;
+
+    // Best rated brew's days off roast
+    let bestRatedDaysOffRoast: number | null = null;
+    if (ratedBrewsWithDOR.length > 0) {
+      const bestRated = ratedBrewsWithDOR.reduce((best, b) =>
+        (b.computedScore || 0) > (best.computedScore || 0) ? b : best
+      );
+      bestRatedDaysOffRoast = bestRated.daysOffRoast;
+    }
+
+    // Per-bean average days off roast
+    const beanDORMap = new Map<string, { name: string; roasterName: string; days: number[]; bestScore: number | null; bestDays: number | null }>();
+    for (const brew of brewsWithDOR) {
+      const beanId = brew.bag.beanId;
+      const current = beanDORMap.get(beanId) || {
+        name: brew.bag.bean.name,
+        roasterName: brew.bag.bean.roaster?.name || 'Unknown',
+        days: [],
+        bestScore: null,
+        bestDays: null,
+      };
+      current.days.push(brew.daysOffRoast!);
+      if (brew.computedScore && brew.computedScore > 0) {
+        if (current.bestScore === null || brew.computedScore > current.bestScore) {
+          current.bestScore = brew.computedScore;
+          current.bestDays = brew.daysOffRoast;
+        }
+      }
+      if (!beanDORMap.has(beanId)) beanDORMap.set(beanId, current);
+    }
+    const daysOffRoastByBean = Array.from(beanDORMap.entries())
+      .filter(([, data]) => data.days.length >= 2)
+      .map(([beanId, data]) => ({
+        beanId,
+        beanName: data.name,
+        roasterName: data.roasterName,
+        avgDays: Math.round(data.days.reduce((a, b) => a + b, 0) / data.days.length),
+        bestScoreDays: data.bestDays,
+        bestScore: data.bestScore,
+      }))
+      .sort((a, b) => (b.bestScore || 0) - (a.bestScore || 0))
+      .slice(0, 10);
+
     return {
       period: period || 'all',
       totalBrews,
@@ -408,6 +458,12 @@ export async function analyticsRoutes(server: FastifyInstance) {
       avgSliders,
       topTastingNotes,
       brewActivity,
+      daysOffRoastStats: {
+        avgDaysOffRoast,
+        bestRatedDaysOffRoast,
+        totalTracked: brewsWithDOR.length,
+        byBean: daysOffRoastByBean,
+      },
     };
   });
 

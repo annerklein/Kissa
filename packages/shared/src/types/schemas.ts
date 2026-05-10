@@ -258,6 +258,7 @@ export const BrewLogCreateSchema = z.object({
   methodId: z.string().uuid(),
   parameters: BrewParametersSchema.optional(),
   notes: z.string().optional(),
+  daysOffRoast: z.number().int().min(0).nullable().optional(),
 });
 
 export type BrewLogCreate = z.infer<typeof BrewLogCreateSchema>;

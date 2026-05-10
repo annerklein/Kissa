@@ -11,28 +11,18 @@ export function formatRoastDate(date: Date, frozenDaysOffset?: number): string {
   const now = new Date();
   const roastDate = new Date(date);
 
-  // Reset time to compare dates only
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const roast = new Date(roastDate.getFullYear(), roastDate.getMonth(), roastDate.getDate());
 
   let diffDays = Math.floor((today.getTime() - roast.getTime()) / (1000 * 60 * 60 * 24));
 
-  // Subtract frozen days to get effective days off roast
   if (frozenDaysOffset && frozenDaysOffset > 0) {
     diffDays = Math.max(0, diffDays - frozenDaysOffset);
   }
 
   if (diffDays === 0) return 'Roasted today';
-  if (diffDays === 1) return 'Roasted yesterday';
-  if (diffDays < 7) return `${diffDays} days off roast`;
-  if (diffDays < 14) return '1 week off roast';
-  if (diffDays < 21) return '2 weeks off roast';
-  if (diffDays < 28) return '3 weeks off roast';
-
-  return roastDate.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
+  if (diffDays === 1) return '1 day off roast';
+  return `${diffDays} days off roast`;
 }
 
 /**

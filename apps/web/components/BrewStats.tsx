@@ -46,6 +46,19 @@ interface StatsData {
     count: number;
     avgScore: number | null;
   }>;
+  daysOffRoastStats?: {
+    avgDaysOffRoast: number | null;
+    bestRatedDaysOffRoast: number | null;
+    totalTracked: number;
+    byBean: Array<{
+      beanId: string;
+      beanName: string;
+      roasterName: string;
+      avgDays: number;
+      bestScoreDays: number | null;
+      bestScore: number | null;
+    }>;
+  };
 }
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
@@ -266,6 +279,57 @@ export function BrewStats() {
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Days Off Roast Stats */}
+          {stats.daysOffRoastStats && stats.daysOffRoastStats.totalTracked > 0 && (
+            <div className="card animate-slide-up" style={{ animationDelay: '0.45s' }}>
+              <h3 className="section-title">
+                <span>📅</span>
+                Days Off Roast
+              </h3>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-coffee-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-bold text-coffee-800">
+                    {stats.daysOffRoastStats.avgDaysOffRoast ?? '—'}
+                  </p>
+                  <p className="text-[10px] text-coffee-500 mt-0.5">Avg days when brewed</p>
+                </div>
+                <div className="bg-amber-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-bold text-amber-700">
+                    {stats.daysOffRoastStats.bestRatedDaysOffRoast ?? '—'}
+                  </p>
+                  <p className="text-[10px] text-coffee-500 mt-0.5">Days at best score</p>
+                </div>
+              </div>
+
+              {stats.daysOffRoastStats.byBean.length > 0 && (
+                <div>
+                  <p className="text-xs text-coffee-500 font-medium mb-2">Per Bean Sweet Spot</p>
+                  <div className="space-y-2">
+                    {stats.daysOffRoastStats.byBean.map((bean) => (
+                      <div
+                        key={bean.beanId}
+                        className="flex items-center gap-2 p-2 rounded-lg bg-coffee-50/50"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-coffee-800 truncate">{bean.beanName}</p>
+                          <p className="text-[10px] text-coffee-400 truncate">{bean.roasterName}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-semibold text-coffee-700">avg {bean.avgDays}d</p>
+                          {bean.bestScoreDays !== null && (
+                            <p className="text-[10px] text-amber-600">
+                              best at {bean.bestScoreDays}d ({bean.bestScore?.toFixed(1)})
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
