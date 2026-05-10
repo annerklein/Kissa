@@ -68,5 +68,35 @@ export async function buildApp(opts = {}) {
   // Hidden backup route — not listed in UI, accessible only via direct API call
   await server.register(backupRoutes, { prefix: '/internal' });
 
+  // One-time backfill: compute daysOffRoast for existing brews that don't have it
+  server.addHook('onReady', async () => {
+    try {
+      const brewsToBackfill = await prisma.brewLog.findMany({
+        where: { daysOffRoast: null },
+        include: { bag: true },
+      });
+      if (brewsToBackfill.length > 0) {
+        for (const brew of brewsToBackfill) {
+          if (brew.bag?.roastDate) {
+            const brewDate = new Date(brew.brewedAt);
+            const roastDate = new Date(brew.bag.roastDate);
+            const brewDay = new Date(brewDate.getFullYear(), brewDate.getMonth(), brewDate.getDate());
+            const roastDay = new Date(roastDate.getFullYear(), roastDate.getMonth(), roastDate.getDate());
+            const totalDays = Math.floor((brewDay.getTime() - roastDay.getTime()) / (1000 * 60 * 60 * 24));
+            const frozenDays = brew.bag.totalFrozenDays || 0;
+            const daysOffRoast = Math.max(0, totalDays - frozenDays);
+            await prisma.brewLog.update({
+              where: { id: brew.id },
+              data: { daysOffRoast },
+            });
+          }
+        }
+        server.log.info(`Backfilled daysOffRoast for ${brewsToBackfill.length} brews`);
+      }
+    } catch {
+      // Non-critical — don't block startup
+    }
+  });
+
   return server;
 }
