@@ -282,17 +282,24 @@ Open bags can be assigned a **tube position**: Left, Middle, or Right. Correspon
 
 ### Freeze Bag
 
-Bags can be **frozen** to pause the aging clock. Two entry points:
-1. **Freeze existing** — UNOPENED/OPEN → FROZEN, sets `frozenAt`, removes from rotation
-2. **Create frozen** — "Add Bag" modal with freeze toggle. Sets `isFrozenBag: true` (marks as split, not separate purchase)
+Bags can be **frozen** to pause the aging clock. Three modes:
+1. **Full freeze** — OPEN → FROZEN, sets `frozenAt`, removes from rotation
+2. **Partial freeze (portion)** — Bag stays OPEN, sets `frozenGrams` + `frozenAt`, remains in rotation. The bag is one entity throughout.
+3. **Create frozen** — "Add Bag" modal with freeze toggle. Sets `isFrozenBag: true` (marks as split, not separate purchase)
 
-**Thaw:** Frozen duration added to `totalFrozenDays`, `frozenAt` cleared, status → OPEN, added to rotation.
+**Thaw (full):** Frozen duration added to `totalFrozenDays`, `frozenAt` cleared, `frozenGrams` cleared, status → OPEN, added to rotation.
+
+**Thaw (portion):** Frozen duration added to `totalFrozenDays`, `frozenAt` cleared, `frozenGrams` cleared. Bag stays OPEN.
+
+**Single bag identity:** A bag is NEVER duplicated. All freeze/thaw/portion operations modify the same bag record. `frozenGrams` tracks how many grams are frozen while the bag stays in rotation.
+
+**Freeze from home page:** Available beans on the overview page have a freeze button (❄) that opens a modal with Full/Portion options.
 
 **Effective days off roast:** `(today - roastDate) - totalFrozenDays - currentFreezeDuration`. Computed by `computeEffectiveDaysOffRoast()`.
 
-**Multiple cycles:** Supported. `totalFrozenDays` accumulates.
+**Multiple cycles:** Supported. `totalFrozenDays` accumulates across all freeze/thaw cycles.
 
-**Home page:** Frozen bags in collapsible section with compact card and quick "Thaw" button.
+**Unified Thaw UI:** "🔥 Thaw" button appears consistently everywhere a frozen bag or frozen portion is displayed (home page, bean detail, frozen section).
 
 ### Grinder Delta
 

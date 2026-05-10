@@ -29,7 +29,7 @@ Roaster ──1:N──> Bean ──1:N──> Bag ──1:N──> BrewLog
 | **GrinderState** | Current grinder position (singleton) | `grinderModel`, `currentSetting` (float) |
 | **Roaster** | Coffee roaster/company | `name`, `country`, `website`, `logoUrl`, `notes` |
 | **Bean** | Coffee product (stable, re-buyable) | `name`, `roasterId` (FK), `originCountry`, `originRegion`, `varietal`, `process`, `roastLevel` (enum), `tastingNotesExpected` (JSON) |
-| **Bag** | Purchase instance of a bean | `beanId` (FK), `roastDate`, `openedDate`, `bagSizeGrams`, `status` (UNOPENED/OPEN/FINISHED/FROZEN), `isAvailable`, `tubePosition` (LEFT/MIDDLE/RIGHT), `frozenAt`, `totalFrozenDays`, `isFrozenBag` |
+| **Bag** | Purchase instance of a bean | `beanId` (FK), `roastDate`, `openedDate`, `bagSizeGrams`, `status` (OPEN/FINISHED/FROZEN), `isAvailable`, `tubePosition` (LEFT/MIDDLE/RIGHT), `frozenAt`, `totalFrozenDays`, `isFrozenBag`, `frozenGrams` |
 | **Method** | Brewing method | `name` (unique: v60/moka/espresso/french_press), `displayName`, `scalingRules` (JSON), `defaultParams` (JSON), `steps` (JSON) |
 | **BeanMethodRecipe** | Per-bean grind target for a method | `beanId` + `methodId` (unique pair), `grinderTarget` (float), `recipeOverrides` (JSON) |
 | **BrewLog** | Record of an actual brew | `bagId` (FK), `methodId` (FK), `parameters` (JSON), `ratingSliders` (JSON), `drawdownTime`, `computedScore`, `tastingNotesActual` (JSON), `notes`, `suggestionShown` (JSON), `suggestionAccepted` |
@@ -63,6 +63,8 @@ Migrations in `apps/api/prisma/migrations/`:
 2. `20260124142211_move_recipes_to_bean` — Recipes from per-bag to per-bean (`BeanMethodRecipe`)
 3. `20260214092432_add_tube_position_to_bag` — Added `tubePosition` (LEFT/MIDDLE/RIGHT) to Bag
 4. `20260214140000_add_freeze_bag_support` — Added FROZEN status, `frozenAt`, `totalFrozenDays`, `isFrozenBag` to Bag
+5. `20260510192700_remove_unopened_bag_status` — Removed UNOPENED status (bags default to OPEN on creation), migrated existing UNOPENED → OPEN
+6. `20260510223000_add_frozen_grams_to_bag` — Added `frozenGrams` (nullable Int) to Bag for partial freeze support
 
 Applied via `npx prisma migrate deploy` (production) or `pnpm db:migrate` (dev).
 
