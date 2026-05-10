@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { formatRoastDate } from '@kissa/shared';
+import { formatRoastDate, formatRoastDateShort } from '@kissa/shared';
 import { Logo } from '../../../components/Logo';
 import { CountryFlag } from '../../../components/CountryFlag';
 
@@ -229,7 +229,10 @@ export default function RoasterDetailPage() {
                       )}
                       {latestBag && (
                         <p className="text-xs text-coffee-400 mt-1">
-                          {formatRoastDate(new Date(latestBag.roastDate))}
+                          {latestBag.status === 'FINISHED'
+                            ? formatRoastDateShort(new Date(latestBag.roastDate))
+                            : formatRoastDate(new Date(latestBag.roastDate))
+                          }
                         </p>
                       )}
                     </div>

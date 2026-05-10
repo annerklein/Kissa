@@ -1,6 +1,6 @@
 'use client';
 
-import { formatRoastDate, computeEffectiveDaysOffRoast, computeTotalFrozenDays } from '@kissa/shared';
+import { formatRoastDate, formatRoastDateShort, computeEffectiveDaysOffRoast, computeTotalFrozenDays } from '@kissa/shared';
 import { TubePositionIndicator } from './TubePositionIndicator';
 
 interface BagCardProps {
@@ -44,6 +44,7 @@ export function BagCard({ bag, onSelect, onMarkFinished, onDelete, onFreeze, onU
       : null;
 
   const isFrozen = bag.status === 'FROZEN';
+  const isFinished = bag.status === 'FINISHED';
   const totalFrozenDays = bag.totalFrozenDays || 0;
   const allFrozenDays = computeTotalFrozenDays(totalFrozenDays, bag.frozenAt);
   const effectiveDaysOffRoast = computeEffectiveDaysOffRoast(
@@ -63,7 +64,10 @@ export function BagCard({ bag, onSelect, onMarkFinished, onDelete, onFreeze, onU
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="font-medium">
-              {formatRoastDate(new Date(bag.roastDate), allFrozenDays > 0 ? allFrozenDays : undefined)}
+              {isFinished
+                ? formatRoastDateShort(new Date(bag.roastDate))
+                : formatRoastDate(new Date(bag.roastDate), allFrozenDays > 0 ? allFrozenDays : undefined)
+              }
             </span>
             <span
               className={`px-2 py-0.5 rounded-full text-xs ${
@@ -86,8 +90,8 @@ export function BagCard({ bag, onSelect, onMarkFinished, onDelete, onFreeze, onU
             </p>
           )}
 
-          {/* Show effective days off roast when there's been freeze time */}
-          {!isFrozen && allFrozenDays > 0 && (
+          {/* Show effective days off roast for OPEN bags with freeze history */}
+          {!isFrozen && !isFinished && allFrozenDays > 0 && (
             <p className="text-xs text-coffee-400 mt-1">
               {effectiveDaysOffRoast} effective days off roast (frozen {allFrozenDays}d)
             </p>

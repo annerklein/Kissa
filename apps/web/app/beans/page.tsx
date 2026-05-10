@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { formatRoastDate } from '@kissa/shared';
+import { formatRoastDate, formatRoastDateShort } from '@kissa/shared';
 import { Logo } from '../../components/Logo';
 import { CountryFlag } from '../../components/CountryFlag';
 import Link from 'next/link';
@@ -109,7 +109,10 @@ export default function BeansPage() {
                   </p>
                   {bean.bags?.[0] && (
                     <p className="text-xs text-coffee-400 mt-1">
-                      {formatRoastDate(new Date(bean.bags[0].roastDate))}
+                      {bean.bags[0].status === 'FINISHED'
+                        ? formatRoastDateShort(new Date(bean.bags[0].roastDate))
+                        : formatRoastDate(new Date(bean.bags[0].roastDate))
+                      }
                     </p>
                   )}
                 </div>

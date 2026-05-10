@@ -26,6 +26,14 @@ export function formatRoastDate(date: Date, frozenDaysOffset?: number): string {
 }
 
 /**
+ * Format roast date as a calendar date (for finished/historical bags)
+ */
+export function formatRoastDateShort(date: Date): string {
+  const roastDate = new Date(date);
+  return `Roasted ${roastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+}
+
+/**
  * Calculate days since roast
  */
 export function daysSinceRoast(roastDate: Date): number {
