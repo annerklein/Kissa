@@ -40,6 +40,23 @@ async function applyGrinder(newSetting: number) {
   return res.json();
 }
 
+const COFFEE_GIFS = [
+  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjA5OGF4Nm5jb256OHBjcjJ6bWJ2cGV0ZnNjdnR6dWd6aWx4YyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/drJECAyMPOavC/giphy.gif',
+  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXQ0NjJtczBybnFyeHl0cWhraHFyYXU5aTlucWJ1OWhyNWhvczU1OCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/cMVaEDjfFRKFBXiU9V/giphy.gif',
+  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNnI5NmU0dHZ3bno3c2Q1ZXphOWgyZWtyeGcwczVzN2Z1NjV5eGpyNyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/h4Nme5CK5Mp1L1h6EX/giphy.gif',
+  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjNhZXR2b2xhN3A5a3hmMm1qeG03ZmhpcWoyeHVoYW8wYjR3dHh6NSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/oS4pEAt2kOjFe/giphy.gif',
+  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbGVveHVrNHd3Ymx3bGZ0YTBiaDRhOTFoNnk3M3l2azRsMXZ5OG90MCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/3jVT4U5bilspG/giphy.gif',
+  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeHA5cnVwY3plNjA1OHV3YjZ0Znk1OXN2ZmN0dmphZnR4Z2dpeThjMCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/FmBhzktPjn7GJiEJMz/giphy.gif',
+  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMnRnMXZ4aDQzajlsYzB6bG1sZDh4dzBwNnQ5cjlhNm5xYXo4eDhnaCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/tLQfm7dmGqBW/giphy.gif',
+  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeDk3MjN4c3Q5enJmbTV5MmwxZ3lwM2g4anp6aXhuMWZ4OWUwZWR5eSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/l0HlHSB8CRNxfNJW8/giphy.gif',
+  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbTl0MTY3Y2tiZTR6dDJmMGprMGxwOWJjcHJkMnpvODJ4czg3bjUwcCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/WOYKaXGsXoSAHHFkMj/giphy.gif',
+  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcTFtbnMyeDlrbGQ5ZHY3MjU3NWxuOXB3bGY3NW1oeGxtOWJ6YXZwciZlcD12MV9naWZzX3NlYXJjaCZjdD1n/UYBDCJjwOd4Ri/giphy.gif',
+];
+
+function getRandomGif(): string {
+  return COFFEE_GIFS[Math.floor(Math.random() * COFFEE_GIFS.length)];
+}
+
 export default function BrewPage() {
   return (
     <React.Suspense fallback={
@@ -66,6 +83,7 @@ function BrewPageContent() {
   const [servings, setServings] = useState(1);
   const [gramsPerServing, setGramsPerServing] = useState(15);
   const [hasInitializedServings, setHasInitializedServings] = useState(false);
+  const [brewingState, setBrewingState] = useState<{ gif: string; brewId?: string; action: 'rate' | 'log' } | null>(null);
 
   // Reset initialization when bag or method changes
   React.useEffect(() => {
@@ -163,22 +181,62 @@ function BrewPageContent() {
 
   const handleBrewAndRate = () => {
     setLastAction('rate');
+    const gif = getRandomGif();
     brewMutation.mutate(brewData, {
       onSuccess: (brew) => {
-        router.push(`/rate?brewId=${brew.id}`);
+        setBrewingState({ gif, brewId: brew.id, action: 'rate' });
       },
     });
   };
 
   const handleJustBrew = () => {
     setLastAction('log');
+    const gif = getRandomGif();
     brewMutation.mutate(brewData, {
       onSuccess: () => {
         queryClient.invalidateQueries();
-        router.push('/');
+        setBrewingState({ gif, action: 'log' });
       },
     });
   };
+
+  const handleBrewingScreenTap = () => {
+    if (!brewingState) return;
+    if (brewingState.action === 'rate' && brewingState.brewId) {
+      router.push(`/rate?brewId=${brewingState.brewId}`);
+    } else {
+      router.push('/');
+    }
+  };
+
+  if (brewingState) {
+    return (
+      <main
+        onClick={handleBrewingScreenTap}
+        className="min-h-screen bg-gradient-to-b from-coffee-900 via-coffee-800 to-coffee-900 flex flex-col items-center justify-center cursor-pointer select-none"
+      >
+        <div className="animate-scale-in flex flex-col items-center px-6 max-w-sm">
+          <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-3xl overflow-hidden shadow-2xl shadow-black/40 mb-8">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={brewingState.gif}
+              alt="Brewing coffee..."
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <h2 className="text-white text-2xl sm:text-3xl font-display font-bold text-center mb-2">
+            Brewing...
+          </h2>
+          <p className="text-coffee-300 text-sm sm:text-base text-center">
+            {brewingState.action === 'rate' ? 'Tap anywhere to rate your brew' : 'Tap anywhere when done'}
+          </p>
+          <div className="mt-6 animate-pulse-soft">
+            <span className="text-4xl">☕</span>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-coffee-50 via-white to-coffee-100">
