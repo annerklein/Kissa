@@ -184,6 +184,18 @@ export async function brewsRoutes(server: FastifyInstance) {
       }
     }
 
+    // Deduct dose from bag's remainingGrams if tracked
+    if (parameters?.dose) {
+      const bag = await prisma.bag.findUnique({ where: { id: rest.bagId } });
+      if (bag?.remainingGrams !== null && bag?.remainingGrams !== undefined) {
+        const newRemaining = Math.max(0, bag.remainingGrams - Math.round(parameters.dose));
+        await prisma.bag.update({
+          where: { id: rest.bagId },
+          data: { remainingGrams: newRemaining },
+        });
+      }
+    }
+
     const brew = await prisma.brewLog.create({
       data: {
         ...rest,

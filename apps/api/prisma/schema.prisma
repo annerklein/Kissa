@@ -90,6 +90,7 @@ model Bag {
   roastDate       DateTime
   openedDate      DateTime?
   bagSizeGrams    Int?
+  remainingGrams  Int?      // Tracks remaining grams (null = not tracked; decremented by brews and freeze portions)
   status          BagStatus @default(OPEN)
   isAvailable     Boolean   @default(true)
   tubePosition    String?   // LEFT, MIDDLE, or RIGHT - position on the tube for open bags

@@ -187,10 +187,20 @@ export async function bagsRoutes(server: FastifyInstance) {
       if (body.data.isAvailable === undefined) {
         updateData.isAvailable = true;
       }
+      // Deduct frozen grams from remainingGrams if tracked
+      const newFrozenGrams = body.data.frozenGrams as number;
+      const prevFrozenGrams = currentBag.frozenGrams || 0;
+      const delta = newFrozenGrams - prevFrozenGrams;
+      if (delta > 0 && currentBag.remainingGrams !== null && currentBag.remainingGrams !== undefined) {
+        updateData.remainingGrams = Math.max(0, currentBag.remainingGrams - delta);
+      }
     }
 
-    // Handle clearing frozenGrams on OPEN bag: just clear it, no time calculation
+    // Handle clearing frozenGrams on OPEN bag: add back to remainingGrams
     if (isClearingFrozenGrams && currentBag.status !== 'FROZEN') {
+      if (currentBag.frozenGrams && currentBag.remainingGrams !== null && currentBag.remainingGrams !== undefined) {
+        updateData.remainingGrams = currentBag.remainingGrams + currentBag.frozenGrams;
+      }
       updateData.frozenGrams = null;
     }
 
@@ -221,8 +231,16 @@ export async function bagsRoutes(server: FastifyInstance) {
       // (frozenGrams passed in body means "keep this amount frozen, thaw the rest")
       if (isSettingFrozenGrams) {
         updateData.frozenGrams = body.data.frozenGrams;
+        // Remaining = bagSize - kept frozen (if grams tracking is active)
+        if (currentBag.bagSizeGrams && currentBag.remainingGrams !== null) {
+          updateData.remainingGrams = Math.max(0, (currentBag.bagSizeGrams || 0) - (body.data.frozenGrams as number));
+        }
       } else {
         updateData.frozenGrams = null;
+        // Full thaw: restore full bag
+        if (currentBag.bagSizeGrams && currentBag.remainingGrams !== null) {
+          updateData.remainingGrams = currentBag.bagSizeGrams;
+        }
       }
     }
 

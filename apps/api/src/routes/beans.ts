@@ -167,6 +167,11 @@ export async function beansRoutes(server: FastifyInstance) {
       ...body.data,
     };
 
+    // Initialize remainingGrams from bagSizeGrams if provided
+    if (bagData.bagSizeGrams && bagData.remainingGrams === undefined) {
+      bagData.remainingGrams = bagData.bagSizeGrams;
+    }
+
     // If creating a frozen bag, set frozenAt automatically
     if (bagData.status === 'FROZEN') {
       bagData.frozenAt = bagData.frozenAt || new Date();

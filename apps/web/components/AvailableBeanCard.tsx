@@ -20,6 +20,8 @@ interface AvailableBag {
   totalFrozenDays?: number;
   isFrozenBag?: boolean;
   frozenGrams?: number | null;
+  remainingGrams?: number | null;
+  bagSizeGrams?: number | null;
   bean: {
     id: string;
     name: string;
@@ -88,6 +90,11 @@ export function AvailableBeanCard({ bag, methodId, onTubePositionChange, onFreez
               <span className="badge bg-coffee-100 text-coffee-600">
                 {formatRoastDate(new Date(roastDate), allFrozenDays > 0 ? allFrozenDays : undefined)}
               </span>
+              {bag.remainingGrams !== null && bag.remainingGrams !== undefined && (
+                <span className="badge bg-amber-50 text-amber-700">
+                  {bag.remainingGrams}g left
+                </span>
+              )}
               {bag.isFrozenBag && (
                 <span className="badge bg-cyan-50 text-cyan-600 text-[10px]">
                   was frozen

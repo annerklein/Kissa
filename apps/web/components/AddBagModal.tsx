@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 interface AddBagModalProps {
   onClose: () => void;
-  onSubmit: (data: { roastDate: Date; isAvailable: boolean; status?: string; isFrozenBag?: boolean; frozenAt?: Date }) => void;
+  onSubmit: (data: { roastDate: Date; isAvailable: boolean; status?: string; isFrozenBag?: boolean; frozenAt?: Date; bagSizeGrams?: number }) => void;
   isSubmitting: boolean;
   defaultFrozen?: boolean;
 }
@@ -15,9 +15,11 @@ export function AddBagModal({ onClose, onSubmit, isSubmitting, defaultFrozen = f
   );
   const [isAvailable, setIsAvailable] = useState(!defaultFrozen);
   const [isFrozen, setIsFrozen] = useState(defaultFrozen);
+  const [bagGrams, setBagGrams] = useState<string>('250');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const grams = bagGrams ? parseInt(bagGrams) : undefined;
     if (isFrozen) {
       onSubmit({
         roastDate: new Date(roastDate),
@@ -25,11 +27,13 @@ export function AddBagModal({ onClose, onSubmit, isSubmitting, defaultFrozen = f
         status: 'FROZEN',
         isFrozenBag: true,
         frozenAt: new Date(),
+        bagSizeGrams: grams,
       });
     } else {
       onSubmit({
         roastDate: new Date(roastDate),
         isAvailable,
+        bagSizeGrams: grams,
       });
     }
   };
@@ -53,6 +57,23 @@ export function AddBagModal({ onClose, onSubmit, isSubmitting, defaultFrozen = f
               required
               className="w-full px-4 py-2 border border-coffee-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-coffee-400"
             />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm text-coffee-500 mb-2">
+              Bag Size (grams)
+            </label>
+            <input
+              type="number"
+              value={bagGrams}
+              onChange={(e) => setBagGrams(e.target.value)}
+              placeholder="250"
+              min={1}
+              className="w-full px-4 py-2 border border-coffee-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-coffee-400"
+            />
+            <p className="text-[10px] text-coffee-400 mt-1">
+              Optional. Enables gram tracking — decrements with each brew.
+            </p>
           </div>
 
           {/* Mode toggle: Regular or Frozen */}
