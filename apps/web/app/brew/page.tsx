@@ -41,16 +41,16 @@ async function applyGrinder(newSetting: number) {
 }
 
 const COFFEE_GIFS = [
-  'https://media.giphy.com/media/h4Nme5CK5Mp1L1h6EX/giphy.gif',
-  'https://media.giphy.com/media/3jVT4U5bilspG/giphy.gif',
-  'https://media.giphy.com/media/xT0Gqz4x4eLd5sIa5y/giphy.gif',
-  'https://media.giphy.com/media/vN3fMMSAmVwoo/giphy.gif',
-  'https://media.giphy.com/media/xT5LMHxhOfscxPfIfm/giphy.gif',
-  'https://media.giphy.com/media/xUPGcMzfM1OY7NqoVi/giphy.gif',
-  'https://media.giphy.com/media/l3vRfNA1p0rvhMSvS/giphy.gif',
-  'https://media.giphy.com/media/XOY5y7YXjTD7q/giphy.gif',
-  'https://media.giphy.com/media/cfuL5gqFDreXxkWQ4o/giphy.gif',
-  'https://media.giphy.com/media/nAErqE3k2C3fy/giphy.gif',
+  '/gifs/coffee-1.gif',
+  '/gifs/coffee-2.gif',
+  '/gifs/coffee-3.gif',
+  '/gifs/coffee-4.gif',
+  '/gifs/coffee-5.gif',
+  '/gifs/coffee-6.gif',
+  '/gifs/coffee-7.gif',
+  '/gifs/coffee-8.gif',
+  '/gifs/coffee-9.gif',
+  '/gifs/coffee-10.gif',
 ];
 
 function getRandomGif(): string {
